@@ -86,7 +86,7 @@ const navGroups = [
     items: [
       { label: "Activity", path: "/activity", icon: CalendarDays, tipId: NAV_TOOLTIP_IDS["/activity"] },
       { label: "Token Ledger", path: "/burn", icon: Flame, tipId: NAV_TOOLTIP_IDS["/burn"] },
-      { label: "Bench", path: "/bench", icon: Cpu, tipId: NAV_TOOLTIP_IDS["/bench"] },
+      { label: "Vitals", path: "/vitals", icon: Cpu, tipId: NAV_TOOLTIP_IDS["/bench"] },
       { label: "Approvals", path: "/approvals", icon: ShieldCheck, tipId: NAV_TOOLTIP_IDS["/approvals"] },
       { label: "Portfolio", path: "/portfolio", icon: Compass, tipId: NAV_TOOLTIP_IDS["/portfolio"] },
       { label: "Pipeline", path: "/pipeline", icon: Workflow, tipId: NAV_TOOLTIP_IDS["/pipeline"] },

@@ -287,8 +287,16 @@ export const api = {
     request<import("./bench-types").BenchResultsPayload>("GET", "/api/bench/results"),
   runBench: (models: string[]) =>
     request<import("./bench-types").BenchRunResult>("POST", "/api/bench/run", { models }),
+  runLlamaCppBench: (modelPath?: string) =>
+    request<import("./bench-types").BenchRunResult>("POST", "/api/bench/llamacpp", modelPath ? { modelPath } : {}),
+  validateBenchCsv: () =>
+    request<import("./bench-types").BenchValidation>("GET", "/api/bench/validate"),
   getCoachApprovals: (limit = 50) =>
     request<import("./coach-approvals-types").CoachApprovalsPayload>("GET", `/api/coach/approvals?limit=${limit}`),
+  getCoachGraphStatus: () =>
+    request<import("./coach-approvals-types").CoachGraphStatus>("GET", "/api/coach/graph/status"),
+  runCoachGraph: (body: { profileId: string; dryRun?: boolean; autoApprove?: boolean }) =>
+    request<import("./coach-approvals-types").CoachGraphRunResult>("POST", "/api/coach/graph/run", body),
   getProviderCooldown: () =>
     request<{
       version: number;

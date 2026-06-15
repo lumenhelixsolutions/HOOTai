@@ -8,6 +8,11 @@ const { spawn } = require('child_process');
 
 const DEFAULT_CSV = path.join(__dirname, 'state', 'bench-results.csv');
 const BENCH_SCRIPT = path.join(__dirname, 'scripts', 'bench-local-models.mjs');
+const LLAMACPP_BENCH_SCRIPT = path.join(__dirname, 'scripts', 'bench-llamacpp.mjs');
+
+const BENCH_CSV_COLUMNS = ['model', 'status', 'latency_ms', 'tokens_per_sec'];
+const BENCH_VALID_STATUSES = new Set(['pass', 'weak', 'missing', 'error', 'unknown']);
+const BENCH_TIER_THRESHOLDS = { fast: 20, ok: 8 };
 
 function parseCsvLine(line) {
   const out = [];
@@ -48,17 +53,69 @@ function normalizeBenchRow(row) {
     latency_ms: Number(row.latency_ms) || 0,
     tokens_per_sec: Number(row.tokens_per_sec) || 0,
     note: row.note || '',
+    backend: row.backend || 'ollama',
     updated_at: row.updated_at || null,
   };
 }
 
+function validateBenchCsv(content) {
+  const errors = [];
+  const warnings = [];
+  const lines = String(content || '').trim().split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) {
+    return { ok: false, errors: ['CSV must include header and at least one data row'], warnings, row_count: 0 };
+  }
+  const header = parseCsvLine(lines[0]).map((h) => h.trim());
+  for (const col of BENCH_CSV_COLUMNS) {
+    if (!header.includes(col)) errors.push(`Missing required column: ${col}`);
+  }
+  const rows = [];
+  for (let i = 1; i < lines.length; i += 1) {
+    const cols = parseCsvLine(lines[i]);
+    const row = {};
+    header.forEach((key, idx) => { row[key] = (cols[idx] || '').trim(); });
+    if (!row.model) {
+      errors.push(`Row ${i + 1}: model is required`);
+      continue;
+    }
+    if (!BENCH_VALID_STATUSES.has(row.status || '')) {
+      errors.push(`Row ${i + 1}: invalid status "${row.status}"`);
+    }
+    if (Number.isNaN(Number(row.latency_ms))) errors.push(`Row ${i + 1}: latency_ms must be numeric`);
+    if (Number.isNaN(Number(row.tokens_per_sec))) errors.push(`Row ${i + 1}: tokens_per_sec must be numeric`);
+    const normalized = normalizeBenchRow(row);
+    rows.push(normalized);
+    if (normalized.status === 'pass') {
+      const tier = benchScoreAdjustment(normalized).tier;
+      if (!['fast', 'ok', 'slow'].includes(tier)) warnings.push(`Row ${i + 1}: pass row has unexpected tier ${tier}`);
+    }
+  }
+  const tiers = rows.reduce((acc, row) => {
+    const tier = benchScoreAdjustment(row).tier;
+    acc[tier] = (acc[tier] || 0) + 1;
+    return acc;
+  }, {});
+  return {
+    ok: errors.length === 0,
+    errors,
+    warnings,
+    row_count: rows.length,
+    tiers,
+    thresholds: BENCH_TIER_THRESHOLDS,
+    rows,
+  };
+}
+
 function loadBenchResults(csvPath = DEFAULT_CSV) {
-  if (!fs.existsSync(csvPath)) return { path: csvPath, rows: [], updated_at: null };
+  if (!fs.existsSync(csvPath)) {
+    return { path: csvPath, rows: [], updated_at: null, validation: { ok: false, errors: ['CSV file missing'], warnings: [], row_count: 0 } };
+  }
   const raw = fs.readFileSync(csvPath, 'utf8');
   const rows = parseBenchCsv(raw);
+  const validation = validateBenchCsv(raw);
   let updated_at = null;
   try { updated_at = fs.statSync(csvPath).mtime.toISOString(); } catch { /* ignore */ }
-  return { path: csvPath, rows, updated_at };
+  return { path: csvPath, rows, updated_at, validation };
 }
 
 function modelVariants(name) {
@@ -127,12 +184,33 @@ function runBenchScript(models = [], csvPath = DEFAULT_CSV) {
   });
 }
 
+function runLlamaCppBenchScript(csvPath = DEFAULT_CSV, modelPath = null) {
+  return new Promise((resolve, reject) => {
+    const args = [LLAMACPP_BENCH_SCRIPT, '--out', csvPath];
+    if (modelPath) args.push('--model', modelPath);
+    const child = spawn(process.execPath, args, { cwd: __dirname, stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (d) => { stdout += d; });
+    child.stderr.on('data', (d) => { stderr += d; });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code !== 0) return reject(new Error(stderr || stdout || `llamacpp bench exit ${code}`));
+      resolve(loadBenchResults(csvPath));
+    });
+  });
+}
+
 module.exports = {
   DEFAULT_CSV,
+  BENCH_CSV_COLUMNS,
+  BENCH_TIER_THRESHOLDS,
   parseBenchCsv,
+  validateBenchCsv,
   loadBenchResults,
   findBenchRow,
   benchScoreAdjustment,
   applyBenchToProfile,
   runBenchScript,
+  runLlamaCppBenchScript,
 };

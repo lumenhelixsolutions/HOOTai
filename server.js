@@ -96,6 +96,8 @@ const {
   loadBenchResults,
   applyBenchToProfile,
   runBenchScript,
+  runLlamaCppBenchScript,
+  validateBenchCsv,
   DEFAULT_CSV: BENCH_CSV,
 } = require('./bench-results');
 const { logCoachExecution, loadApprovalLog, summarizeApprovalLog } = require('./coach-approval-log');
@@ -2700,6 +2702,19 @@ async function route(req, res) {
       } catch (err) {
         return send(res, 500, { ok: false, error: err.message });
       }
+    }
+    if (pathName === '/api/bench/llamacpp' && req.method === 'POST') {
+      const body = await readBody(req);
+      try {
+        const data = await runLlamaCppBenchScript(BENCH_CSV, body.modelPath || body.model_path || null);
+        return send(res, 200, { ok: true, ...data });
+      } catch (err) {
+        return send(res, 500, { ok: false, error: err.message });
+      }
+    }
+    if (pathName === '/api/bench/validate' && req.method === 'GET') {
+      const data = loadBenchResults(BENCH_CSV);
+      return send(res, 200, { ok: data.validation?.ok ?? false, ...data.validation });
     }
     if (pathName === '/api/race' && req.method === 'POST') {
       const body = await readBody(req);

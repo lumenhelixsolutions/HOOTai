@@ -61,6 +61,7 @@ export default function App() {
         <Route path="/activity" element={<Suspense fallback={<PageShell />}><ActivityPage /></Suspense>} />
         <Route path="/burn" element={<Suspense fallback={<PageShell />}><TokenLedgerPage /></Suspense>} />
         <Route path="/bench" element={<Suspense fallback={<PageShell />}><BenchPage /></Suspense>} />
+        <Route path="/vitals" element={<Suspense fallback={<PageShell />}><BenchPage /></Suspense>} />
         <Route path="/approvals" element={<Suspense fallback={<PageShell />}><ApprovalsPage /></Suspense>} />
         <Route path="/pipeline" element={<Suspense fallback={<PageShell />}><PipelinePage /></Suspense>} />
         <Route path="/portfolio" element={<Suspense fallback={<PageShell />}><PortfolioPage /></Suspense>} />

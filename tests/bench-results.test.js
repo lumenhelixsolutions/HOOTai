@@ -1,10 +1,13 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
+const fs = require('fs');
+const path = require('path');
 const {
   parseBenchCsv,
   findBenchRow,
   benchScoreAdjustment,
   applyBenchToProfile,
+  validateBenchCsv,
 } = require('../bench-results');
 
 const SAMPLE = `model,status,latency_ms,tokens_per_sec,note
@@ -39,6 +42,33 @@ describe('bench-results', () => {
     assert.strictEqual(out.score, 87);
     assert.ok(out.bench);
     assert.ok(out.reasons.some((r) => r.includes('Bench pass')));
+  });
+
+  it('validates fixture CSV tiers', () => {
+    const fixture = fs.readFileSync(path.join(__dirname, 'fixtures', 'bench-results.valid.csv'), 'utf8');
+    const report = validateBenchCsv(fixture);
+    assert.strictEqual(report.ok, true);
+    assert.strictEqual(report.row_count, 2);
+    assert.strictEqual(report.tiers.fast, 1);
+    assert.strictEqual(report.tiers.ok, 1);
+  });
+
+  it('rejects invalid bench status', () => {
+    const bad = `model,status,latency_ms,tokens_per_sec,note
+x,bogus,0,0,""`;
+    const report = validateBenchCsv(bad);
+    assert.strictEqual(report.ok, false);
+    assert.ok(report.errors.length > 0);
+  });
+
+  it('applies bench delta to llamacpp profile eval', () => {
+    const rows = parseBenchCsv(`model,status,latency_ms,tokens_per_sec,note,backend
+llamacpp:demo.gguf,pass,800,12.1,"llama-bench",llamacpp`);
+    const base = { state: 'READY', score: 70, reasons: [] };
+    const profile = { meta: { backend: 'llamacpp', model: 'llamacpp:demo.gguf' } };
+    const out = applyBenchToProfile(base, profile, { rows });
+    assert.strictEqual(out.score, 78);
+    assert.strictEqual(out.bench.tier, 'ok');
   });
 
   it('skips non-ollama backends without model', () => {

@@ -122,8 +122,16 @@ function checkVisualStoryBridge(portfolioRoot) {
   const root = portfolioRoot || process.cwd();
   const lookbookExport = path.join(root, 'lookBOOK', 'lookbook', 'pipeline', 'cineforge_export.py');
   const cineforgeIngest = path.join(root, 'cineforge', 'backend', 'ingest', 'lookbook.py');
-  const e2eScript = path.join(root, 'scripts', 'pipeline-visual-story.ps1');
-  const lastRunPath = path.join(root, 'scripts', '.pipeline-visual-story-last-run.json');
+  const e2eCandidates = [
+    path.join(root, 'scripts', 'pipeline-visual-story.ps1'),
+    path.join(root, 'lookBOOK', 'scripts', 'pipeline-visual-story.ps1'),
+  ];
+  const e2eScript = e2eCandidates.find((p) => fs.existsSync(p)) || e2eCandidates[0];
+  const lastRunCandidates = [
+    path.join(root, 'scripts', '.pipeline-visual-story-last-run.json'),
+    path.join(root, 'lookBOOK', 'scripts', '.pipeline-visual-story-last-run.json'),
+  ];
+  const lastRunPath = lastRunCandidates.find((p) => fs.existsSync(p)) || lastRunCandidates[0];
   const lastRun = readJsonIfExists(lastRunPath);
   const cineforgeUrl = process.env.CINEFORGE_URL || 'http://127.0.0.1:8000/health';
   const healthUrl = cineforgeUrl.includes('/health') ? cineforgeUrl : `${cineforgeUrl.replace(/\/$/, '')}/health`;

@@ -2,7 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   BookOpen,
+  BookText,
   CalendarDays,
+  Cpu,
+  Flame,
+  Gauge,
   Layers3,
   Moon,
   PanelLeftClose,
@@ -13,11 +17,14 @@ import {
   ShieldCheck,
   Sparkles,
   TerminalSquare,
+  Compass,
+  Workflow,
   Wrench,
 } from "lucide-react";
 import { toggleTheme } from "@/lib/theme";
 import { api } from "@/lib/api";
 import { useCoach } from "@/context/CoachContext";
+import { getTooltip } from "@/lib/tooltips";
 
 export interface PaletteCommand {
   id: string;
@@ -49,23 +56,32 @@ export default function CommandPalette({ open, onClose, onToggleSidebar }: Props
 
   const commands = useMemo<PaletteCommand[]>(
     () => [
-      { id: "nav-overview", label: "Overview", hint: "Mission status and next action", group: "Navigate", keywords: "dashboard home mission", icon: Radar, run: () => navigate("/") },
-      { id: "nav-scan", label: "Readiness", hint: "System posture and environment health", group: "Navigate", keywords: "scan tools health posture", icon: ShieldCheck, run: () => navigate("/scan") },
-      { id: "nav-profiles", label: "Profiles", hint: "Operational roles and fit", group: "Navigate", keywords: "stacks roles audit", icon: Layers3, run: () => navigate("/profiles") },
-      { id: "nav-terminal", label: "Sessions", hint: "Live terminals and launches", group: "Navigate", keywords: "terminal console output", icon: TerminalSquare, run: () => navigate("/terminal") },
-      { id: "nav-launch", label: "Launch Center", hint: "Stage, validate, and launch", group: "Navigate", keywords: "run start execute", icon: PlayCircle, run: () => navigate("/launch") },
-      { id: "nav-activity", label: "Activity", hint: "Session diary and telemetry", group: "Navigate", keywords: "history log radar", icon: CalendarDays, run: () => navigate("/activity") },
-      { id: "nav-memory", label: "Memory", hint: "Captured evidence and outcomes", group: "Navigate", keywords: "notes learning evidence", icon: BookOpen, run: () => navigate("/memory") },
-      { id: "nav-builder", label: "Stack Builder", hint: "Compose operator stacks", group: "Navigate", keywords: "compose build wizard", icon: Sparkles, run: () => navigate("/builder") },
-      { id: "nav-modules", label: "Modules", hint: "Plugin packs, skills, MCP", group: "Navigate", keywords: "plugins skills mcp installer", icon: Wrench, run: () => navigate("/modules") },
-      { id: "nav-settings", label: "Settings", hint: "Providers, policies, keys", group: "Navigate", keywords: "config preferences keys", icon: SettingsIcon, run: () => navigate("/settings") },
-      { id: "act-scan", label: "Run system scan", hint: "Open Readiness and rescan the environment", group: "Actions", keywords: "rescan detect refresh", icon: ShieldCheck, run: () => navigate("/scan") },
-      { id: "act-theme", label: "Toggle dark / light theme", hint: "Switch the interface theme", group: "Actions", keywords: "appearance mode color", icon: Moon, run: () => toggleTheme() },
-      { id: "act-sidebar", label: "Toggle sidebar", hint: "Collapse or expand the dock (Ctrl+B)", group: "Actions", keywords: "collapse expand dock nav", icon: PanelLeftClose, run: onToggleSidebar },
-      { id: "act-handoff", label: "Generate handoff packet", hint: "Copy paste-ready project state for provider switch", group: "Actions", keywords: "handoff packet switch provider dump", icon: Sparkles, run: () => { navigate("/"); emitCoachAction("generate-handoff"); } },
-      { id: "act-bootstrap", label: "Workspace setup wizard", hint: "Scan-driven onboarding: project, layout, providers", group: "Actions", keywords: "onboarding bootstrap workspace setup", icon: Sparkles, run: () => { window.dispatchEvent(new CustomEvent("hoot-open-onboarding")); onClose(); } },
-      { id: "act-claude-cd", label: "Mark Claude cooldown (3hr)", hint: "Update provider matrix", group: "Actions", keywords: "claude cooldown quota limit", icon: ShieldCheck, run: () => { api.patchProviderCooldown({ provider: "claude", preset: "3hr" }).catch(() => {}); navigate("/"); } },
-      { id: "act-hybrid-settings", label: "Hybrid workspace settings", hint: "Cooldowns and workspace roots", group: "Navigate", keywords: "cooldown roots workspace hybrid", icon: SettingsIcon, run: () => navigate("/settings") },
+      { id: "nav-overview", label: "Overview", hint: getTooltip("nav.overview").body, group: "Navigate", keywords: "dashboard home mission", icon: Radar, run: () => navigate("/") },
+      { id: "nav-scan", label: "Readiness", hint: getTooltip("nav.readiness").body, group: "Navigate", keywords: "scan tools health posture", icon: ShieldCheck, run: () => navigate("/scan") },
+      { id: "nav-profiles", label: "Profiles", hint: getTooltip("nav.profiles").body, group: "Navigate", keywords: "stacks roles audit", icon: Layers3, run: () => navigate("/profiles") },
+      { id: "nav-terminal", label: "Sessions", hint: getTooltip("nav.sessions").body, group: "Navigate", keywords: "terminal console output", icon: TerminalSquare, run: () => navigate("/terminal") },
+      { id: "nav-launch", label: "Launch Center", hint: getTooltip("nav.launch").body, group: "Navigate", keywords: "run start execute", icon: PlayCircle, run: () => navigate("/launch") },
+      { id: "nav-deck", label: "Command Deck", hint: getTooltip("nav.deck").body, group: "Navigate", keywords: "cooldown gauge matrix popout handoff radar", icon: Gauge, run: () => navigate("/deck") },
+      { id: "nav-activity", label: "Activity", hint: getTooltip("nav.activity").body, group: "Navigate", keywords: "history log radar diary", icon: CalendarDays, run: () => navigate("/activity") },
+      { id: "nav-burn", label: "Token Ledger", hint: getTooltip("nav.burn").body, group: "Navigate", keywords: "token burn codex claude chatgpt ledger fermi", icon: Flame, run: () => navigate("/burn") },
+      { id: "nav-bench", label: "Bench", hint: getTooltip("nav.bench").body, group: "Navigate", keywords: "bench ollama local model tokens latency benchmark", icon: Cpu, run: () => navigate("/bench") },
+      { id: "nav-approvals", label: "Approvals", hint: getTooltip("nav.approvals").body, group: "Navigate", keywords: "coach approval phase4 gated launch memory audit", icon: ShieldCheck, run: () => navigate("/approvals") },
+      { id: "nav-portfolio", label: "Portfolio", hint: getTooltip("nav.portfolio").body, group: "Navigate", keywords: "portfolio mvp launcher hub cineforge lookbook racegps brain git health cards", icon: Compass, run: () => navigate("/portfolio") },
+      { id: "nav-pipeline", label: "Pipeline", hint: getTooltip("nav.pipeline").body, group: "Navigate", keywords: "pipeline milestones bridges portfolio project-brain integration matrix", icon: Workflow, run: () => navigate("/pipeline") },
+      { id: "nav-memory", label: "Memory", hint: getTooltip("nav.memory").body, group: "Navigate", keywords: "notes learning evidence blocked", icon: BookOpen, run: () => navigate("/memory") },
+      { id: "nav-builder", label: "Stack Builder", hint: getTooltip("nav.builder").body, group: "Navigate", keywords: "compose build wizard stack", icon: Sparkles, run: () => navigate("/builder") },
+      { id: "nav-modules", label: "Modules", hint: getTooltip("nav.modules").body, group: "Navigate", keywords: "plugins skills mcp installer prefab", icon: Wrench, run: () => navigate("/modules") },
+      { id: "nav-docs", label: "Documentation", hint: getTooltip("nav.docs").body, group: "Navigate", keywords: "docs guide readme plans operator manual", icon: BookText, run: () => navigate("/docs") },
+      { id: "nav-settings", label: "Settings", hint: getTooltip("nav.settings").body, group: "Navigate", keywords: "config preferences keys hybrid core", icon: SettingsIcon, run: () => navigate("/settings") },
+      { id: "act-scan", label: "Run system scan", hint: "Open Readiness and rescan agents, Ollama, GPU, RTK, and env keys", group: "Actions", keywords: "rescan detect refresh readiness", icon: ShieldCheck, run: () => navigate("/scan") },
+      { id: "act-theme", label: "Toggle dark / light theme", hint: getTooltip("shell.theme").body, group: "Actions", keywords: "appearance mode color theme", icon: Moon, run: () => toggleTheme() },
+      { id: "act-sidebar", label: "Toggle sidebar", hint: getTooltip("shell.sidebar.collapse").body, group: "Actions", keywords: "collapse expand dock nav sidebar", icon: PanelLeftClose, run: onToggleSidebar },
+      { id: "act-handoff", label: "Generate handoff packet", hint: getTooltip("deck.handoff.generate").body, group: "Actions", keywords: "handoff packet switch provider dump save-state", icon: Sparkles, run: () => { navigate("/deck"); emitCoachAction("generate-handoff"); } },
+      { id: "act-bootstrap", label: "Workspace setup wizard", hint: "Scan-driven onboarding: active project, layout, providers, and hybrid roots", group: "Actions", keywords: "onboarding bootstrap workspace setup", icon: Sparkles, run: () => { window.dispatchEvent(new CustomEvent("hoot-open-onboarding")); onClose(); } },
+      { id: "act-claude-cd", label: "Mark Claude cooldown (3hr)", hint: "Mark Claude COOLDOWN in the provider matrix — opens Command Deck context", group: "Actions", keywords: "claude cooldown quota limit 3hr", icon: ShieldCheck, run: () => { api.patchProviderCooldown({ provider: "claude", preset: "3hr" }).catch(() => {}); navigate("/deck"); } },
+      { id: "act-popout", label: "Open floating Command Deck", hint: getTooltip("deck.popout.open").body, group: "Actions", keywords: "popout pip floating monitor always on top", icon: Gauge, run: () => navigate("/deck") },
+      { id: "act-owl-float", label: "Float HOOT owl above windows", hint: getTooltip("shell.hoot.float").body, group: "Actions", keywords: "owl ascii mascot pip always on top transparent float", icon: Gauge, run: () => window.dispatchEvent(new CustomEvent("hoot:open-owl-float")) },
+      { id: "act-hybrid-settings", label: "Hybrid workspace settings", hint: "Workspace roots, auto handoff on cooldown, and provider matrix in Settings", group: "Navigate", keywords: "cooldown roots workspace hybrid", icon: SettingsIcon, run: () => navigate("/settings") },
     ],
     [navigate, onToggleSidebar, emitCoachAction],
   );

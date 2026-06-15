@@ -4,7 +4,10 @@ import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import {
   BookOpen,
+  BookText,
   CalendarDays,
+  Cpu,
+  Flame,
   ChevronLeft,
   ChevronRight,
   Command,
@@ -19,6 +22,7 @@ import {
   ShieldCheck,
   Sparkles,
   TerminalSquare,
+  Workflow,
   Wrench,
   X,
 } from "lucide-react";
@@ -32,39 +36,70 @@ import { BRAND } from "@/lib/brand";
 import HelpTooltip from "./HelpTooltip";
 import ViewGuideBar from "./ViewGuideBar";
 import CooldownStrip from "./deck/CooldownStrip";
+import { CooldownRegistryProvider } from "@/context/CooldownRegistryContext";
+import { DeckPopoutProvider } from "./deck/popout";
+import { HootFloatProvider } from "./hoot/hoot-float";
 import { ToastProvider } from "./Toast";
+import SessionPollProvider from "./SessionPollProvider";
 import { getViewDoc } from "@/lib/app-docs";
+import { getTooltip } from "@/lib/tooltips";
 import { toggleTheme } from "@/lib/theme";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useHootVersion } from "@/hooks/useHootVersion";
 
 const priorityRoutes = ["/", "/scan", "/profiles", "/terminal"];
 
+const NAV_TOOLTIP_IDS = {
+  "/": "nav.overview",
+  "/scan": "nav.readiness",
+  "/profiles": "nav.profiles",
+  "/terminal": "nav.sessions",
+  "/launch": "nav.launch",
+  "/deck": "nav.deck",
+  "/activity": "nav.activity",
+  "/burn": "nav.burn",
+  "/bench": "nav.bench",
+  "/approvals": "nav.approvals",
+  "/pipeline": "nav.pipeline",
+  "/portfolio": "nav.portfolio",
+  "/memory": "nav.memory",
+  "/builder": "nav.builder",
+  "/modules": "nav.modules",
+  "/settings": "nav.settings",
+  "/docs": "nav.docs",
+} as const;
+
 const navGroups = [
   {
     title: "Command Center",
     items: [
-      { label: "Overview", path: "/", icon: Radar, desc: "Mission status, priorities, and next action" },
-      { label: "Readiness", path: "/scan", icon: ShieldCheck, desc: "System posture, tools, and environment health" },
-      { label: "Profiles", path: "/profiles", icon: Layers3, desc: "Operational roles, audit posture, and fit" },
-      { label: "Sessions", path: "/terminal", icon: TerminalSquare, desc: "Live terminals, launches, and continuity" },
-      { label: "Launch Center", path: "/launch", icon: PlayCircle, desc: "Stage, validate, and launch execution" },
-      { label: "Command Deck", path: "/deck", icon: Gauge, desc: "Live cooldown gauges, context radar, save-state handoffs" },
+      { label: "Overview", path: "/", icon: Radar, tipId: NAV_TOOLTIP_IDS["/"] },
+      { label: "Readiness", path: "/scan", icon: ShieldCheck, tipId: NAV_TOOLTIP_IDS["/scan"] },
+      { label: "Profiles", path: "/profiles", icon: Layers3, tipId: NAV_TOOLTIP_IDS["/profiles"] },
+      { label: "Sessions", path: "/terminal", icon: TerminalSquare, tipId: NAV_TOOLTIP_IDS["/terminal"] },
+      { label: "Launch Center", path: "/launch", icon: PlayCircle, tipId: NAV_TOOLTIP_IDS["/launch"] },
+      { label: "Command Deck", path: "/deck", icon: Gauge, tipId: NAV_TOOLTIP_IDS["/deck"] },
     ],
   },
   {
     title: "Intelligence",
     items: [
-      { label: "Activity", path: "/activity", icon: CalendarDays, desc: "Session diary, radar history, telemetry" },
-      { label: "Memory", path: "/memory", icon: BookOpen, desc: "Captured evidence, notes, and outcomes" },
+      { label: "Activity", path: "/activity", icon: CalendarDays, tipId: NAV_TOOLTIP_IDS["/activity"] },
+      { label: "Token Ledger", path: "/burn", icon: Flame, tipId: NAV_TOOLTIP_IDS["/burn"] },
+      { label: "Bench", path: "/bench", icon: Cpu, tipId: NAV_TOOLTIP_IDS["/bench"] },
+      { label: "Approvals", path: "/approvals", icon: ShieldCheck, tipId: NAV_TOOLTIP_IDS["/approvals"] },
+      { label: "Portfolio", path: "/portfolio", icon: Compass, tipId: NAV_TOOLTIP_IDS["/portfolio"] },
+      { label: "Pipeline", path: "/pipeline", icon: Workflow, tipId: NAV_TOOLTIP_IDS["/pipeline"] },
+      { label: "Memory", path: "/memory", icon: BookOpen, tipId: NAV_TOOLTIP_IDS["/memory"] },
     ],
   },
   {
     title: "Build + Configure",
     items: [
-      { label: "Stack Builder", path: "/builder", icon: Sparkles, desc: "Compose premium operator stacks" },
-      { label: "Modules", path: "/modules", icon: Wrench, desc: "Plugin packs, skills, MCP — manager · installer · loader" },
-      { label: "Settings", path: "/settings", icon: SettingsIcon, desc: "Providers, policies, keys, and local state" },
+      { label: "Stack Builder", path: "/builder", icon: Sparkles, tipId: NAV_TOOLTIP_IDS["/builder"] },
+      { label: "Modules", path: "/modules", icon: Wrench, tipId: NAV_TOOLTIP_IDS["/modules"] },
+      { label: "Documentation", path: "/docs", icon: BookText, tipId: NAV_TOOLTIP_IDS["/docs"] },
+      { label: "Settings", path: "/settings", icon: SettingsIcon, tipId: NAV_TOOLTIP_IDS["/settings"] },
     ],
   },
 ];
@@ -173,6 +208,10 @@ export default function AppLayout() {
 
   return (
     <ToastProvider>
+      <SessionPollProvider />
+      <CooldownRegistryProvider pollMs={30000}>
+      <DeckPopoutProvider>
+      <HootFloatProvider>
       <div className="hoot-app-shell flex min-h-screen bg-background font-sans text-foreground">
         {/* Desktop sidebar */}
         {!isMobile && (
@@ -227,9 +266,18 @@ export default function AppLayout() {
               <div>
                 <div className="flex items-center gap-2.5">
                   <h1 className="font-serif text-xl font-semibold tracking-[-0.02em] md:text-[28px]">{current.label}</h1>
-                  <HelpTooltip title={viewDoc.title} body={viewDoc.summary} features={viewDoc.features} size={16} />
+                  <HelpTooltip
+                    title={viewDoc.title}
+                    body={viewDoc.summary}
+                    features={viewDoc.features}
+                    orchestration={viewDoc.orchestration}
+                    tips={viewDoc.tips}
+                    size={16}
+                  />
                 </div>
-                <div className="mt-1 hidden max-w-3xl text-sm opacity-70 sm:block">{current.desc}</div>
+                <div className="mt-1 hidden max-w-3xl text-sm opacity-70 sm:block">
+                  {"tipId" in current ? getTooltip(current.tipId).body : current.desc}
+                </div>
               </div>
               <div className="hidden flex-wrap items-stretch gap-3 lg:flex">
                 <TopMetric
@@ -246,15 +294,17 @@ export default function AppLayout() {
             </div>
             <div className="flex shrink-0 flex-col items-end gap-2 md:flex-row md:items-center md:gap-3">
               <CooldownStrip />
-              <button
-                onClick={() => setPaletteOpen(true)}
-                aria-label="Open command palette"
-                className="hoot-card-soft flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground"
-              >
+              <HelpTooltip {...getTooltip("shell.commandPalette")} size={12}>
+                <button
+                  onClick={() => setPaletteOpen(true)}
+                  aria-label="Open command palette"
+                  className="hoot-card-soft flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground"
+                >
                 <Command size={13} />
                 <span className="hidden sm:inline">Search</span>
                 <kbd className="border border-border px-1.5 py-0.5 text-[10px]">Ctrl K</kbd>
-              </button>
+                </button>
+              </HelpTooltip>
               <div className="hidden items-center gap-2 xl:flex">
                 <StatusPill label="127.0.0.1 active" tone="green" />
                 {versionInfo?.display ? <StatusPill label={versionInfo.display} tone="gold" /> : <StatusPill label={BRAND.subtitle} tone="gold" />}
@@ -279,6 +329,9 @@ export default function AppLayout() {
         />
         <HootMascot />
       </div>
+      </HootFloatProvider>
+      </DeckPopoutProvider>
+      </CooldownRegistryProvider>
     </ToastProvider>
   );
 }
@@ -294,7 +347,7 @@ function SidebarContent({
 }: {
   collapsed: boolean;
   pathname: string;
-  focusItems: Array<{ label: string; path: string; desc: string }>;
+  focusItems: Array<{ label: string; path: string; tipId: (typeof NAV_TOOLTIP_IDS)[keyof typeof NAV_TOOLTIP_IDS] }>;
   versionInfo: ReturnType<typeof useHootVersion>;
   onCollapseToggle: () => void;
   showCollapseToggle: boolean;
@@ -332,12 +385,14 @@ function SidebarContent({
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const active = pathname === item.path;
+                const tip = getTooltip(item.tipId);
                 return (
                   <Link
                     key={item.path}
                     to={item.path}
                     onClick={onNavigate}
                     aria-current={active ? "page" : undefined}
+                    title={tip.body}
                     className={`flex items-center gap-3 rounded-2xl no-underline ${
                       collapsed ? "justify-center p-3" : "px-3.5 py-3"
                     } ${active ? "hoot-active-item text-foreground" : "border border-transparent text-foreground/80 hover:bg-foreground/[0.03]"}`}
@@ -348,10 +403,10 @@ function SidebarContent({
                         <div className="flex items-center gap-1.5">
                           <div className={`text-[13px] ${active ? "font-semibold" : "font-medium"}`}>{item.label}</div>
                           <span onClick={(e) => e.preventDefault()} className="inline-flex">
-                            <HelpTooltip title={item.label} body={item.desc} size={11} />
+                            <HelpTooltip {...tip} size={11} />
                           </span>
                         </div>
-                        <div className="truncate text-[11px] opacity-50">{item.desc}</div>
+                        <div className="truncate text-[11px] opacity-50">{tip.body}</div>
                       </div>
                     )}
                   </Link>
@@ -367,18 +422,20 @@ function SidebarContent({
             <div className="grid gap-2">
               {focusItems.map((item, index) => {
                 const active = pathname === item.path;
+                const tip = getTooltip(item.tipId);
                 return (
                   <Link
                     key={item.path}
                     to={item.path}
                     onClick={onNavigate}
+                    title={tip.body}
                     className={`flex items-center justify-between gap-3 py-2.5 no-underline ${
                       index === 0 ? "" : "border-t border-border"
                     } text-foreground`}
                   >
                     <div>
                       <div className={`text-[13px] ${active ? "font-semibold" : "font-medium"}`}>{item.label}</div>
-                      <div className="mt-0.5 text-[11px] opacity-50">{item.desc}</div>
+                      <div className="mt-0.5 text-[11px] opacity-50">{tip.tips?.[0] || tip.body}</div>
                     </div>
                     <Compass size={15} className={active ? "hoot-gold-text" : "opacity-40"} />
                   </Link>
@@ -435,7 +492,7 @@ function VersionFooter({
   return (
     <div className={`border-t border-border px-4 py-3 ${collapsed ? "text-center" : ""}`}>
       {collapsed ? (
-        <div className="text-[10px] font-medium tracking-wide text-muted-foreground" title={versionInfo.display}>
+        <div className="text-[10px] font-medium tracking-wide text-muted-foreground" title={`${versionInfo.display} — engine ${versionInfo.engine?.package_version || versionInfo.version}`}>
           v{versionInfo.version}
         </div>
       ) : (

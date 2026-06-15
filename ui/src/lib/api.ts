@@ -116,6 +116,16 @@ export const api = {
     }>("GET", `/api/bootstrap${refreshRegistry ? "?refresh_registry=1" : ""}`),
   getProfilesSummary: () => request<any[]>("GET", "/api/profiles/summary"),
   getTokenBurn: (refresh?: boolean) => request<any>("GET", `/api/token-burn${refresh ? "?refresh=1" : ""}`),
+  getTokenLedger: (refresh?: boolean, mode?: "full" | "fast_recent") => {
+    const params = new URLSearchParams();
+    if (refresh) params.set("refresh", "1");
+    if (mode) params.set("mode", mode);
+    const q = params.toString();
+    return request<import("./token-ledger-types").TokenLedgerPayload>("GET", `/api/token-ledger${q ? `?${q}` : ""}`);
+  },
+  getTokenLedgerConfig: () => request<{ ok: boolean; config: Record<string, unknown>; discovered: Record<string, unknown> }>("GET", "/api/token-ledger/config"),
+  updateTokenLedgerConfig: (patch: Record<string, unknown>) => request<{ ok: boolean; config: Record<string, unknown> }>("PUT", "/api/token-ledger/config", patch),
+  importTokenLedger: (payload: unknown) => request<import("./token-ledger-types").TokenLedgerPayload>("POST", "/api/token-ledger/import", payload),
   getAgentRadar: (force?: boolean) =>
     request<{
       scanned_at: string;
@@ -226,6 +236,10 @@ export const api = {
   deleteKey: (name: string) => request<any>("POST", "/api/keys", { name, delete: true }),
   syncKeys: () => request<{ ok: boolean; imported: number; keys: Array<Record<string, unknown>> }>("POST", "/api/keys/sync", {}),
   getPortfolioHealth: () => request<any>("GET", "/api/portfolio/health"),
+  getPortfolioPipeline: (refresh?: boolean) =>
+    request<import("./pipeline-types").PipelineOverview>("GET", `/api/portfolio/pipeline${refresh ? "?refresh=1" : ""}`),
+  getProjectOverview: (projectPath?: string) =>
+    request<import("./pipeline-types").ProjectOverview>("GET", `/api/project-overview${projectPath ? `?path=${encodeURIComponent(projectPath)}` : ""}`),
   getSuggestions: () => request<any>("GET", "/api/suggestions"),
   getModules: () => request<{ version: string; modules: Array<any>; auto_sync?: { enabled: boolean; interval_days: number } }>("GET", "/api/modules"),
   getPrefab: () => request<Record<string, unknown>>("GET", "/api/prefab"),
@@ -269,6 +283,12 @@ export const api = {
     }>("POST", "/api/coach/execute", { command }),
   getCoachAudit: (limit = 50) =>
     request<{ entries: Array<Record<string, unknown>>; count: number }>("GET", `/api/coach/audit?limit=${limit}`),
+  getBenchResults: () =>
+    request<import("./bench-types").BenchResultsPayload>("GET", "/api/bench/results"),
+  runBench: (models: string[]) =>
+    request<import("./bench-types").BenchRunResult>("POST", "/api/bench/run", { models }),
+  getCoachApprovals: (limit = 50) =>
+    request<import("./coach-approvals-types").CoachApprovalsPayload>("GET", `/api/coach/approvals?limit=${limit}`),
   getProviderCooldown: () =>
     request<{
       version: number;
@@ -323,7 +343,13 @@ export const api = {
   getTelemetry: () =>
     request<{ file: string | null; kernel: string; mirror: string | null; telemetry: Record<string, unknown> }>("GET", "/api/telemetry"),
   syncTelemetry: (importFromDisk?: boolean) =>
-    request<{ ok: boolean; direction: string; telemetry?: Record<string, unknown>; files?: Record<string, unknown> }>("POST", "/api/telemetry/sync", { import: importFromDisk }),
+    request<{
+      ok: boolean;
+      direction: string;
+      telemetry?: Record<string, unknown>;
+      files?: Record<string, unknown>;
+      registry?: import("./cooldown").CooldownRegistry;
+    }>("POST", "/api/telemetry/sync", { import: importFromDisk }),
   sessionBootstrap: (body: {
     cooldowns?: Array<{ provider: string; status?: string; cooldown_until?: string | null; preset?: string }>;
     current_session_provider?: string | null;

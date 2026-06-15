@@ -191,6 +191,12 @@ export function ActiveProjectWidget({
                   The active project is the operating context for readiness checks, memory, portfolio risk, and profile
                   selection. This keeps the home screen oriented around real work instead of raw controls.
                 </div>
+                <Link
+                  to="/pipeline"
+                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                >
+                  Pipeline overview <ArrowRight size={12} />
+                </Link>
               </div>
               {activeIssues.length > 0 && (
                 <div className="mt-4 rounded-[18px] border border-red-400/20 bg-red-400/[0.05] p-4">

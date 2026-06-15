@@ -1,6 +1,6 @@
 {
   "name": "hoot-launch-approval",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "entry": "scan",
   "nodes": [
     { "id": "scan", "kind": "tool", "api": "GET /api/scan" },

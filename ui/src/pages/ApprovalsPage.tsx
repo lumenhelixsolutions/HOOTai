@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { RefreshCw, ShieldCheck } from "lucide-react";
+import { useCallback, useState } from "react";
+import { Play, RefreshCw, ShieldCheck } from "lucide-react";
 import { api } from "@/lib/api";
 import { useCoach } from "@/context/CoachContext";
 import type { CoachApprovalEntry, CoachApprovalsPayload } from "@/lib/coach-approvals-types";
@@ -33,27 +33,60 @@ function formatWhen(iso: string) {
   }
 }
 
+const DEFAULT_GRAPH_PROFILE = "local-safe-audit";
+
 export default function ApprovalsPage() {
   const [data, setData] = useState<CoachApprovalsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [graphProfile, setGraphProfile] = useState(DEFAULT_GRAPH_PROFILE);
+  const [graphRunning, setGraphRunning] = useState(false);
+  const [graphStatus, setGraphStatus] = useState<string | null>(null);
+  const [sidecarOnline, setSidecarOnline] = useState<boolean | null>(null);
   const { setPageContext } = useCoach();
 
   const load = useCallback(async () => {
     setRefreshing(true);
     try {
-      const payload = await api.getCoachApprovals(50);
+      const [payload, status] = await Promise.all([
+        api.getCoachApprovals(50),
+        api.getCoachGraphStatus().catch(() => null),
+      ]);
       setData(payload);
+      setSidecarOnline(status?.sidecar?.online ?? false);
       setPageContext({
         approvalCount: payload.count,
         phase4Ready: payload.phase4Ready,
         approvalRecentOk: payload.rows.filter((r) => r.ok).length,
+        graphRuns: payload.summary?.graphRuns ?? 0,
       });
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, [setPageContext]);
+
+  const runGraphDryRun = useCallback(async () => {
+    setGraphRunning(true);
+    setGraphStatus(null);
+    try {
+      const result = await api.runCoachGraph({
+        profileId: graphProfile.trim(),
+        dryRun: true,
+        autoApprove: true,
+      });
+      setGraphStatus(
+        result.ok
+          ? `Dry-run OK · score ${(result.state as { score?: number })?.score ?? "—"} · tier ${result.config?.tier ?? "default"}`
+          : `Graph failed: ${result.error || "unknown error"}`,
+      );
+      await load();
+    } catch (err) {
+      setGraphStatus(`Sidecar error: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setGraphRunning(false);
+    }
+  }, [graphProfile, load]);
 
   useSessionPoll(load, { immediate: true });
 
@@ -117,6 +150,73 @@ export default function ApprovalsPage() {
         </div>
       </Section>
 
+      {data.summary && (
+        <Section title="Approval analytics" caption="Aggregates from the JSONL log (M15)">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+            {[
+              { label: "Success rate", value: `${data.summary.successRate}%` },
+              { label: "Graph runs", value: String(data.summary.graphRuns) },
+              { label: "Dry-run graphs", value: String(data.summary.graphDryRuns) },
+              { label: "Blocked", value: String(data.summary.blockedCount) },
+            ].map((chip) => (
+              <span
+                key={chip.label}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 8,
+                  fontSize: 11,
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                <span style={{ opacity: 0.5 }}>{chip.label}: </span>
+                <strong>{chip.value}</strong>
+              </span>
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, fontSize: 11 }}>
+            <AnalyticsList title="By type" items={data.summary.byType} />
+            <AnalyticsList title="By profile" items={data.summary.byProfile} />
+            <AnalyticsList title="By tier" items={data.summary.byTier} />
+          </div>
+        </Section>
+      )}
+
+      <Section
+        title="LangGraph dry-run"
+        caption={`Coach graph sidecar ${sidecarOnline ? "online" : "offline"} · POST /api/coach/graph/run`}
+      >
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+          <input
+            value={graphProfile}
+            onChange={(e) => setGraphProfile(e.target.value)}
+            placeholder="profile id"
+            style={{
+              flex: "1 1 220px",
+              minWidth: 180,
+              padding: "10px 12px",
+              borderRadius: 10,
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(0,0,0,0.25)",
+              color: "#f5e6d0",
+              fontSize: 12,
+            }}
+          />
+          <button type="button" onClick={runGraphDryRun} disabled={graphRunning || !sidecarOnline} style={btnStyle(true)}>
+            <Play size={14} />
+            {graphRunning ? "Running…" : "Dry-run graph"}
+          </button>
+        </div>
+        {graphStatus && (
+          <p style={{ margin: "12px 0 0", fontSize: 11, opacity: 0.7, lineHeight: 1.5 }}>{graphStatus}</p>
+        )}
+        {!sidecarOnline && (
+          <p style={{ margin: "10px 0 0", fontSize: 11, opacity: 0.5 }}>
+            Start sidecar: <code>python coach-graph/server.py</code> (port 7788)
+          </p>
+        )}
+      </Section>
+
       <Section title="Approval events" caption={rows.length ? `Showing last ${rows.length} of ${data.count} total` : "No gated executions yet"}>
         {rows.length === 0 ? (
           <div style={{ padding: 16, borderRadius: 12, border: "1px solid rgba(255,176,66,0.2)", background: "rgba(255,176,66,0.06)", fontSize: 12, lineHeight: 1.55 }}>
@@ -162,20 +262,43 @@ export default function ApprovalsPage() {
   );
 }
 
+function AnalyticsList({ title, items }: { title: string; items: Record<string, number> }) {
+  const entries = Object.entries(items || {}).sort((a, b) => b[1] - a[1]);
+  return (
+    <div style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.06)" }}>
+      <div style={{ opacity: 0.5, marginBottom: 8 }}>{title}</div>
+      {entries.length === 0 ? (
+        <div style={{ opacity: 0.4 }}>—</div>
+      ) : (
+        entries.map(([key, count]) => (
+          <div key={key} style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+            <code style={{ fontSize: 10 }}>{key}</code>
+            <span>{count}</span>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
 function ApprovalRow({ row }: { row: CoachApprovalEntry }) {
   const resultLabel = row.blocked ? "blocked" : row.ok ? "ok" : "failed";
   const resultColor = row.blocked ? "#fbbf24" : row.ok ? "#34d399" : "#f87171";
+  const typeLabel = row.type === "graphRun" && row.dryRun ? "graphRun (dry)" : row.type;
 
   return (
     <tr>
       <td style={tdLeft}>{formatWhen(row.at)}</td>
       <td style={tdLeft}>
-        <code style={{ fontSize: 11 }}>{row.type}</code>
+        <code style={{ fontSize: 11 }}>{typeLabel}</code>
       </td>
       <td style={tdLeft}>
         <span style={{ color: resultColor, fontWeight: 600, textTransform: "uppercase", fontSize: 11 }}>{resultLabel}</span>
       </td>
-      <td style={tdLeft}>{row.profileId || "—"}</td>
+      <td style={tdLeft}>
+        {row.profileId || "—"}
+        {row.tier ? <span style={{ opacity: 0.45, marginLeft: 6 }}>({row.tier})</span> : null}
+      </td>
       <td style={tdLeft}>{row.project || "—"}</td>
       <td style={{ ...tdLeft, opacity: 0.6, fontSize: 11, maxWidth: 240 }}>{row.error || "—"}</td>
     </tr>

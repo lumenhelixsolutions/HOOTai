@@ -5,7 +5,9 @@ const path = require('path');
 const {
   isHardCommand,
   logCoachExecution,
+  logGraphRun,
   loadApprovalLog,
+  summarizeApprovalLog,
   LOG_PATH,
 } = require('../coach-approval-log');
 
@@ -33,5 +35,20 @@ describe('coach-approval-log', () => {
     const data = loadApprovalLog();
     assert.ok(data.count >= 1);
     assert.strictEqual(data.rows[data.rows.length - 1].type, 'launch');
+  });
+
+  it('logs graph runs and summarizes analytics', () => {
+    logGraphRun({
+      profileId: 'local-safe-audit',
+      dryRun: true,
+      ok: true,
+      launched: false,
+      tier: 'safe-audit',
+      score: 57,
+    });
+    const summary = summarizeApprovalLog();
+    assert.ok(summary.graphRuns >= 1);
+    assert.ok(summary.byType.graphRun >= 1);
+    assert.ok(summary.byProfile['local-safe-audit'] >= 1);
   });
 });

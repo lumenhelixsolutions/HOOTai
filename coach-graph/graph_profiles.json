@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "defaultMinScore": 80,
+  "graphs": {
+    "hoot-launch-approval": {
+      "spec": "graph.spec.json",
+      "description": "scan → score → approve → launch → remember"
+    }
+  },
+  "profiles": {
+    "local-safe-audit": { "minScore": 50, "tier": "safe-audit", "graph": "hoot-launch-approval" },
+    "local-patch-test": { "minScore": 60, "tier": "patch-test", "graph": "hoot-launch-approval" },
+    "codex-patch-test": { "minScore": 65, "tier": "patch-test", "graph": "hoot-launch-approval" },
+    "local-heavy-refactor": { "minScore": 85, "tier": "heavy", "graph": "hoot-launch-approval" },
+    "cloud-heavy-refactor-claude": { "minScore": 85, "tier": "heavy", "graph": "hoot-launch-approval" },
+    "compound-core-claude": { "minScore": 75, "tier": "architecture", "graph": "hoot-launch-approval" }
+  }
+}

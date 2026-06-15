@@ -20,8 +20,13 @@ class GraphState(TypedDict, total=False):
     profile_id: str
     scan: dict
     score: int
+    min_score: int
+    profile_tier: str
+    graph_variant: str
     approved: bool
-    dry_run: dict
+    auto_approve: bool
+    dry_run_mode: bool
+    launch_preview: dict
     launch_result: dict
     remember_result: dict
     error: str | None
@@ -39,11 +44,12 @@ def node_score(state: GraphState) -> GraphState:
     if not profile_id:
         return {**state, "error": "profile_id required"}
     score = profile_score(profile_id)
-    if score < MIN_SCORE:
-        return {**state, "score": score, "error": f"score {score} < {MIN_SCORE}"}
+    min_required = int(state.get("min_score") or MIN_SCORE)
+    if score < min_required:
+        return {**state, "score": score, "error": f"score {score} < {min_required}"}
     try:
-        dry = dry_run_launch(profile_id)
-        return {**state, "score": score, "dry_run": dry, "error": None}
+        preview = dry_run_launch(profile_id)
+        return {**state, "score": score, "launch_preview": preview, "error": None}
     except Exception as exc:  # noqa: BLE001
         return {**state, "score": score, "error": str(exc)}
 
@@ -51,7 +57,11 @@ def node_score(state: GraphState) -> GraphState:
 def node_approve(state: GraphState) -> GraphState:
     if state.get("error"):
         return state
-    auto = os.environ.get("HOOT_GRAPH_AUTO_APPROVE", "").lower() in ("1", "true", "yes")
+    auto = state.get("auto_approve") or os.environ.get("HOOT_GRAPH_AUTO_APPROVE", "").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
     if auto:
         return {**state, "approved": True}
     profile_id = state.get("profile_id", "")
@@ -68,6 +78,13 @@ def node_launch(state: GraphState) -> GraphState:
         return state
     profile_id = state.get("profile_id") or ""
     try:
+        if state.get("dry_run_mode"):
+            preview = state.get("launch_preview") or dry_run_launch(profile_id)
+            return {
+                **state,
+                "launch_result": {**preview, "launched": False, "dryRun": True},
+                "error": None,
+            }
         result = launch_profile(profile_id)
         if result.get("needsConfirmation"):
             return {**state, "error": "launch needs confirmation", "launch_result": result}
@@ -79,7 +96,7 @@ def node_launch(state: GraphState) -> GraphState:
 
 
 def node_remember(state: GraphState) -> GraphState:
-    if state.get("error"):
+    if state.get("error") or state.get("dry_run_mode"):
         return state
     profile_id = state.get("profile_id") or ""
     try:

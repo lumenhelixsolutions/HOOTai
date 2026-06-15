@@ -98,7 +98,14 @@ const {
   runBenchScript,
   DEFAULT_CSV: BENCH_CSV,
 } = require('./bench-results');
-const { logCoachExecution, loadApprovalLog } = require('./coach-approval-log');
+const { logCoachExecution, loadApprovalLog, summarizeApprovalLog } = require('./coach-approval-log');
+const {
+  probeCoachGraph,
+  fetchCoachGraphSpec,
+  fetchCoachGraphProfiles,
+  runCoachGraph,
+  DEFAULT_BASE: COACH_GRAPH_BASE,
+} = require('./coach-graph-bridge');
 
 const ROOT = __dirname;
 const SERVER_STARTED_AT = new Date().toISOString();
@@ -2731,7 +2738,44 @@ async function route(req, res) {
     if (pathName === '/api/coach/approvals' && req.method === 'GET') {
       const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') || 50)));
       const data = loadApprovalLog(limit);
-      return send(res, 200, { ...data, phase4Ready: data.count >= 10 });
+      const summary = summarizeApprovalLog(Math.max(limit, 200));
+      return send(res, 200, { ...data, summary, phase4Ready: data.count >= 10 });
+    }
+    if (pathName === '/api/coach/graph/status' && req.method === 'GET') {
+      const probe = await probeCoachGraph(COACH_GRAPH_BASE);
+      return send(res, 200, { ok: true, sidecar: probe });
+    }
+    if (pathName === '/api/coach/graph/spec' && req.method === 'GET') {
+      try {
+        const spec = await fetchCoachGraphSpec(COACH_GRAPH_BASE);
+        return send(res, 200, { ok: true, spec });
+      } catch (err) {
+        return send(res, 503, { ok: false, error: String(err.message || err) });
+      }
+    }
+    if (pathName === '/api/coach/graph/profiles' && req.method === 'GET') {
+      try {
+        const profiles = await fetchCoachGraphProfiles(COACH_GRAPH_BASE);
+        return send(res, 200, { ok: true, profiles });
+      } catch (err) {
+        return send(res, 503, { ok: false, error: String(err.message || err) });
+      }
+    }
+    if (pathName === '/api/coach/graph/run' && req.method === 'POST') {
+      const body = await readBody(req);
+      const profileId = String(body.profileId || body.profile_id || '').trim();
+      if (!profileId) return send(res, 400, { ok: false, error: 'profileId required' });
+      try {
+        const result = await runCoachGraph({
+          profileId,
+          dryRun: Boolean(body.dryRun ?? body.dry_run),
+          autoApprove: Boolean(body.autoApprove ?? body.auto_approve),
+          minScore: body.minScore ?? body.min_score ?? null,
+        });
+        return send(res, result.ok ? 200 : 422, result);
+      } catch (err) {
+        return send(res, 503, { ok: false, error: String(err.message || err) });
+      }
     }
     if (pathName === '/api/coach/execute' && req.method === 'POST') {
       const body = await readBody(req);

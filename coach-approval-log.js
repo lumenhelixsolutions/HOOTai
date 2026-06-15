@@ -48,9 +48,68 @@ function loadApprovalLog(limit = 50) {
   return { path: LOG_PATH, rows, count: lines.length };
 }
 
+function summarizeApprovalLog(limit = 200) {
+  const { rows, count } = loadApprovalLog(limit);
+  const byType = {};
+  const byProfile = {};
+  const byTier = {};
+  let okCount = 0;
+  let blockedCount = 0;
+  let graphRuns = 0;
+  let graphDryRuns = 0;
+
+  for (const row of rows) {
+    const type = String(row.type || 'unknown');
+    byType[type] = (byType[type] || 0) + 1;
+    if (row.profileId) byProfile[row.profileId] = (byProfile[row.profileId] || 0) + 1;
+    if (row.tier) byTier[row.tier] = (byTier[row.tier] || 0) + 1;
+    if (row.ok) okCount += 1;
+    if (row.blocked) blockedCount += 1;
+    if (type === 'graphRun') {
+      graphRuns += 1;
+      if (row.dryRun) graphDryRuns += 1;
+    }
+  }
+
+  const denom = rows.length || 1;
+  return {
+    window: rows.length,
+    total: count,
+    okCount,
+    blockedCount,
+    graphRuns,
+    graphDryRuns,
+    successRate: Math.round((okCount / denom) * 1000) / 10,
+    byType,
+    byProfile,
+    byTier,
+    phase4Ready: count >= 10,
+  };
+}
+
+function logGraphRun(entry = {}) {
+  const row = {
+    type: 'graphRun',
+    ok: Boolean(entry.ok),
+    profileId: entry.profileId || null,
+    project: null,
+    blocked: !entry.ok,
+    error: entry.error || null,
+    dryRun: Boolean(entry.dryRun),
+    autoApprove: Boolean(entry.autoApprove),
+    launched: Boolean(entry.launched),
+    tier: entry.tier || null,
+    score: entry.score ?? null,
+  };
+  appendApprovalLog(row);
+  return row;
+}
+
 module.exports = {
   LOG_PATH,
   isHardCommand,
   logCoachExecution,
+  logGraphRun,
   loadApprovalLog,
+  summarizeApprovalLog,
 };

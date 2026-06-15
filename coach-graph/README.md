@@ -34,13 +34,26 @@ coach-graph/
 
 ## Run
 
+### HTTP sidecar (M14)
+
 ```powershell
 pip install -r coach-graph/requirements.txt
-# HOOT kernel on 7777
-$env:HOOT_GRAPH_AUTO_APPROVE='1'   # skip stdin approve for automation
-$env:HOOT_GRAPH_MIN_SCORE='50'    # default gate is 80
-python coach-graph/graph.py --profile local-safe-audit --json
+# Terminal 1 — HOOT kernel on 7777
+node server.js
+# Terminal 2 — graph sidecar on 7788
+python coach-graph/server.py
 ```
+
+Kernel routes: `GET /api/coach/graph/status`, `POST /api/coach/graph/run`  
+UI: `/approvals` → **LangGraph dry-run** (safe — no live launch)
+
+### CLI
+
+```powershell
+python coach-graph/graph.py --profile local-safe-audit --dry-run --auto-approve --json
+```
+
+Profile tiers: `coach-graph/graph_profiles.json` (per-profile `minScore`).
 
 ## Guardrails
 

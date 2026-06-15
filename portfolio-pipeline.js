@@ -133,7 +133,7 @@ function checkVisualStoryBridge(portfolioRoot) {
   ];
   const lastRunPath = lastRunCandidates.find((p) => fs.existsSync(p)) || lastRunCandidates[0];
   const lastRun = readJsonIfExists(lastRunPath);
-  const cineforgeUrl = process.env.CINEFORGE_URL || 'http://127.0.0.1:8000/health';
+  const cineforgeUrl = process.env.CINEFORGE_URL || 'http://127.0.0.1:8765/health';
   const healthUrl = cineforgeUrl.includes('/health') ? cineforgeUrl : `${cineforgeUrl.replace(/\/$/, '')}/health`;
 
   const modulesReady = fs.existsSync(lookbookExport) && fs.existsSync(cineforgeIngest);

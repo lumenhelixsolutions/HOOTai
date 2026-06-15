@@ -32,10 +32,25 @@ const statusColor: Record<string, string> = {
 
 const bridgeStatusColor: Record<string, string> = {
   verified: "#4ade80",
+  online: "#4ade80",
   ready: "#ffb042",
   incomplete: "#f87171",
   unknown: "#9ca3af",
 };
+
+function bridgeOnlineLabel(b: PipelineOverview["bridge_health"][number]) {
+  if (b.id === "lookbook-lab") return b.lab_online ? "lab online" : "lab offline";
+  if (b.id === "lookbook-director-graph" || b.id === "cineforge-render-graph") {
+    return b.sidecar_online ? "sidecar online" : "sidecar offline";
+  }
+  return b.cineforge_online ? "cineforge online" : "cineforge offline";
+}
+
+function bridgeOnlineState(b: PipelineOverview["bridge_health"][number]) {
+  if (b.id === "lookbook-lab") return Boolean(b.lab_online);
+  if (b.id === "lookbook-director-graph" || b.id === "cineforge-render-graph") return Boolean(b.sidecar_online);
+  return Boolean(b.cineforge_online);
+}
 
 function ExcerptBlock({ text }: { text: string }) {
   return (
@@ -186,8 +201,35 @@ export default function PipelinePage() {
         </div>
       </Section>
 
+      {data.port_registry && data.port_registry.length > 0 && (
+        <Section title="Pipeline ports" caption="One listener per port — from PIPELINE_OPERATOR_RUNBOOK.md">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {data.port_registry.map((p) => (
+              <a
+                key={p.port}
+                href={p.url}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  background: "rgba(255,255,255,0.02)",
+                  textDecoration: "none",
+                  color: "inherit",
+                  minWidth: 160,
+                }}
+              >
+                <div style={{ fontSize: 10, opacity: 0.45 }}>:{p.port}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>{p.service}</div>
+              </a>
+            ))}
+          </div>
+        </Section>
+      )}
+
       {data.bridge_health?.length > 0 && (
-        <Section title="Bridge health" caption="Automated checks for cross-repo data handoffs (M6 visual story)">
+        <Section title="Bridge health" caption="Live status for lab, cineforge, and LangGraph sidecars (S15)">
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {data.bridge_health.map((b) => (
               <div
@@ -203,23 +245,42 @@ export default function PipelinePage() {
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>{b.label}</div>
                     <code style={{ fontSize: 10, opacity: 0.5 }}>{b.endpoint}</code>
+                    {b.port != null && (
+                      <div style={{ fontSize: 10, opacity: 0.4, marginTop: 4 }}>
+                        :{b.port}
+                        {b.service_url ? (
+                          <>
+                            {" · "}
+                            <a href={b.service_url} target="_blank" rel="noreferrer" style={{ color: "#ffb042" }}>
+                              open
+                            </a>
+                          </>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
                   <span style={{ fontSize: 11, fontWeight: 600, color: bridgeStatusColor[b.status] || "#aaa", textTransform: "uppercase" }}>
                     {b.status}
                   </span>
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12, fontSize: 11 }}>
-                  <span style={{ padding: "4px 8px", borderRadius: 6, background: b.modules_ready ? "rgba(74,222,128,0.12)" : "rgba(248,113,113,0.12)", color: b.modules_ready ? "#4ade80" : "#f87171" }}>
-                    modules {b.modules_ready ? "✓" : "✗"}
-                  </span>
-                  <span style={{ padding: "4px 8px", borderRadius: 6, background: b.e2e_script ? "rgba(74,222,128,0.12)" : "rgba(248,113,113,0.12)", color: b.e2e_script ? "#4ade80" : "#f87171" }}>
-                    e2e script {b.e2e_script ? "✓" : "✗"}
-                  </span>
-                  <span style={{ padding: "4px 8px", borderRadius: 6, background: b.last_e2e?.ok ? "rgba(74,222,128,0.12)" : "rgba(255,255,255,0.04)", color: b.last_e2e?.ok ? "#4ade80" : "#9ca3af" }}>
-                    last e2e {b.last_e2e?.ok ? "✓" : b.last_e2e ? "✗" : "—"}
-                  </span>
-                  <span style={{ padding: "4px 8px", borderRadius: 6, background: b.cineforge_online ? "rgba(74,222,128,0.12)" : "rgba(255,255,255,0.04)", color: b.cineforge_online ? "#4ade80" : "#9ca3af" }}>
-                    cineforge {b.cineforge_online ? "online" : "offline"}
+                  {b.modules_ready != null && (
+                    <span style={{ padding: "4px 8px", borderRadius: 6, background: b.modules_ready ? "rgba(74,222,128,0.12)" : "rgba(248,113,113,0.12)", color: b.modules_ready ? "#4ade80" : "#f87171" }}>
+                      modules {b.modules_ready ? "✓" : "✗"}
+                    </span>
+                  )}
+                  {b.e2e_script != null && (
+                    <span style={{ padding: "4px 8px", borderRadius: 6, background: b.e2e_script ? "rgba(74,222,128,0.12)" : "rgba(248,113,113,0.12)", color: b.e2e_script ? "#4ade80" : "#f87171" }}>
+                      e2e script {b.e2e_script ? "✓" : "✗"}
+                    </span>
+                  )}
+                  {b.last_e2e != null && (
+                    <span style={{ padding: "4px 8px", borderRadius: 6, background: b.last_e2e?.ok ? "rgba(74,222,128,0.12)" : "rgba(255,255,255,0.04)", color: b.last_e2e?.ok ? "#4ade80" : "#9ca3af" }}>
+                      last e2e {b.last_e2e?.ok ? "✓" : b.last_e2e ? "✗" : "—"}
+                    </span>
+                  )}
+                  <span style={{ padding: "4px 8px", borderRadius: 6, background: bridgeOnlineState(b) ? "rgba(74,222,128,0.12)" : "rgba(255,255,255,0.04)", color: bridgeOnlineState(b) ? "#4ade80" : "#9ca3af" }}>
+                    {bridgeOnlineLabel(b)}
                   </span>
                 </div>
                 {b.last_e2e?.finished_at && (
@@ -337,9 +398,21 @@ export default function PipelinePage() {
         </table>
       </Section>
 
+      {data.sources?.eval_artifacts && typeof data.sources.eval_artifacts === "object" && (
+        <Section title="Eval artifacts" caption="Last-run JSON from pipeline-eval-harness.ps1">
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontFamily: "monospace" }}>
+            {Object.entries(data.sources.eval_artifacts as Record<string, string>).map(([key, filePath]) => (
+              <div key={key} style={{ opacity: 0.7 }}>
+                {key}: {filePath}
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
       <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, opacity: 0.55 }}>
         <Workflow size={14} color="#ffb042" />
-        Per-repo pipeline stages live in <code>.agentdock/project-brain/wiki/pipeline-overview.md</code> (lookBOOK, cineforge, etc.).
+        Runbook: <code>docs/PIPELINE_OPERATOR_RUNBOOK.md</code> · per-repo stages in <code>wiki/pipeline-overview.md</code>
       </div>
     </div>
   );

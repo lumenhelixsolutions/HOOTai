@@ -11,19 +11,28 @@ export type BridgeHealth = {
   id: string;
   label: string;
   endpoint: string;
-  status: "verified" | "ready" | "incomplete" | "unknown";
-  modules_ready: boolean;
-  e2e_script: boolean;
-  e2e_script_path: string;
-  last_e2e: {
+  port?: number;
+  service_url?: string;
+  status: "verified" | "ready" | "online" | "incomplete" | "unknown";
+  modules_ready?: boolean;
+  e2e_script?: boolean;
+  e2e_script_path?: string;
+  last_e2e?: {
     ok: boolean;
     finished_at: string | null;
-    shot_count: number | null;
-    pushed: boolean;
+    shot_count?: number | null;
+    pushed?: boolean;
+    files_written?: number | null;
+    stitched?: boolean;
     error: string | null;
   } | null;
-  cineforge_online: boolean;
-  cineforge_health_url: string;
+  cineforge_online?: boolean;
+  cineforge_health_url?: string;
+  lab_online?: boolean;
+  lab_version?: number | null;
+  lab_health_url?: string;
+  sidecar_online?: boolean;
+  sidecar_health_url?: string;
 };
 
 export type PipelineOverview = {
@@ -43,5 +52,6 @@ export type PipelineOverview = {
     pipeline_excerpt: string | null;
   }>;
   active_project: ProjectOverview | null;
-  sources: Record<string, string | null>;
+  port_registry?: Array<{ port: number; service: string; url: string }>;
+  sources: Record<string, string | null | Record<string, string>>;
 };

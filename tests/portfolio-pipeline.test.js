@@ -4,6 +4,7 @@ const path = require('path');
 const {
   buildPipelineOverview,
   buildProjectOverview,
+  checkLookbookLabBridge,
   checkVisualStoryBridge,
   checkStoryRenderBridge,
   checkRenderGraphSidecar,
@@ -63,13 +64,21 @@ describe('portfolio-pipeline', () => {
     assert.ok(['verified', 'ready', 'incomplete'].includes(health.status));
   });
 
+  it('checkLookbookLabBridge reports lab module readiness', () => {
+    const health = checkLookbookLabBridge(PORTFOLIO_ROOT);
+    assert.strictEqual(health.id, 'lookbook-lab');
+    assert.strictEqual(health.modules_ready, true);
+    assert.ok(['verified', 'online', 'ready', 'incomplete'].includes(health.status));
+  });
+
   it('buildPipelineOverview includes bridge_health', () => {
     const report = buildPipelineOverview({
       registry: { active: HOOT_ROOT, projects: [] },
       portfolioRoot: PORTFOLIO_ROOT,
     });
     assert.ok(Array.isArray(report.bridge_health));
-    assert.strictEqual(report.bridge_health[0].id, 'lookbook-cineforge');
+    assert.strictEqual(report.bridge_health[0].id, 'lookbook-lab');
+    assert.ok(report.bridge_health.some((b) => b.id === 'lookbook-cineforge'));
     assert.ok(report.bridge_health.some((b) => b.id === 'story-render-chain'));
     assert.ok(report.bridge_health.some((b) => b.id === 'cineforge-render-graph'));
     assert.ok(report.bridge_health.some((b) => b.id === 'lookbook-director-graph'));

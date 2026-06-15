@@ -6,6 +6,14 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
+const PORT_REGISTRY = [
+  { port: 8042, service: 'lookBOOK Demo Lab', url: 'http://127.0.0.1:8042' },
+  { port: 8765, service: 'CineForge API', url: 'http://127.0.0.1:8765' },
+  { port: 7777, service: 'HOOT kernel UI', url: 'http://127.0.0.1:7777' },
+  { port: 7790, service: 'cineforge render-graph', url: 'http://127.0.0.1:7790' },
+  { port: 7791, service: 'lookBOOK director-graph', url: 'http://127.0.0.1:7791' },
+];
+
 const BRIDGES = [
   { from: 'lookBOOK', to: 'cineforge', label: 'shot_graph.json ingest', endpoint: 'POST /projects/{id}/ingest/lookbook' },
   { from: 'NOTEtoolsLM-v2', to: 'lookBOOK / cineforge', label: 'vault export artifacts', endpoint: 'POST /api/vault/export' },
@@ -139,6 +147,8 @@ function checkStoryRenderBridge(portfolioRoot) {
     id: 'story-render-chain',
     label: 'lookBOOK → cineforge render chain',
     endpoint: 'ingest → living review → render → stitch',
+    port: 8765,
+    service_url: healthUrl.replace(/\/health$/, ''),
     status,
     e2e_script: scriptReady,
     e2e_script_path: e2eScript,
@@ -168,10 +178,78 @@ function checkRenderGraphSidecar(portfolioRoot) {
     id: 'cineforge-render-graph',
     label: 'cineforge render LangGraph',
     endpoint: 'POST /run (sidecar :7790)',
+    port: 7790,
+    service_url: base,
     status: modulesReady ? (online ? 'online' : 'ready') : 'incomplete',
     modules_ready: modulesReady,
     sidecar_online: online,
     sidecar_health_url: healthUrl,
+  };
+}
+
+function probeLookbookLabHealth(baseUrl, timeoutSec = 2) {
+  const healthUrl = `${String(baseUrl || 'http://127.0.0.1:8042').replace(/\/$/, '')}/health`;
+  try {
+    if (process.platform === 'win32') {
+      const ps = [
+        '$ErrorActionPreference = "Stop"',
+        `$h = Invoke-RestMethod -Uri '${healthUrl.replace(/'/g, "''")}' -TimeoutSec ${timeoutSec}`,
+        'if ($h.ok -and $h.version -ge 5) { $h.version } else { exit 1 }',
+      ].join('; ');
+      const result = spawnSync('powershell', ['-NoProfile', '-Command', ps], {
+        encoding: 'utf8',
+        timeout: (timeoutSec + 3) * 1000,
+      });
+      if (result.status !== 0) return { online: false, version: null, health_url: healthUrl };
+      const version = Number.parseInt(String(result.stdout || '').trim(), 10);
+      return { online: Number.isFinite(version), version: Number.isFinite(version) ? version : null, health_url: healthUrl };
+    }
+    const online = probeHttpOk(healthUrl, timeoutSec);
+    return { online, version: online ? 5 : null, health_url: healthUrl };
+  } catch {
+    return { online: false, version: null, health_url: healthUrl };
+  }
+}
+
+function checkLookbookLabBridge(portfolioRoot) {
+  const root = portfolioRoot || process.cwd();
+  const base = process.env.LOOKBOOK_LAB_URL || 'http://127.0.0.1:8042';
+  const e2eScript = path.join(root, 'scripts', 'pipeline-research-story.ps1');
+  const lastRunPath = path.join(root, 'scripts', '.pipeline-research-story-last-run.json');
+  const lastRun = readJsonIfExists(lastRunPath);
+  const labModule = path.join(root, 'lookBOOK', 'lookbook', 'lab_server.py');
+  const modulesReady = fs.existsSync(labModule);
+  const scriptReady = fs.existsSync(e2eScript);
+  const e2ePassed = Boolean(lastRun?.ok);
+  const probe = probeLookbookLabHealth(base);
+
+  let status = 'unknown';
+  if (modulesReady && probe.online && e2ePassed) status = 'verified';
+  else if (modulesReady && probe.online) status = 'online';
+  else if (modulesReady && scriptReady) status = 'ready';
+  else status = 'incomplete';
+
+  return {
+    id: 'lookbook-lab',
+    label: 'lookBOOK Demo Lab (vault → pipeline)',
+    endpoint: 'POST /api/import-vault → POST /api/pipeline/run?project_id=',
+    port: 8042,
+    service_url: base,
+    status,
+    modules_ready: modulesReady,
+    lab_online: probe.online,
+    lab_version: probe.version,
+    lab_health_url: probe.health_url,
+    e2e_script: scriptReady,
+    e2e_script_path: e2eScript,
+    last_e2e: lastRun
+      ? {
+          ok: Boolean(lastRun.ok),
+          finished_at: lastRun.finished_at || lastRun.started_at || null,
+          files_written: lastRun.files_written ?? null,
+          error: lastRun.error || null,
+        }
+      : null,
   };
 }
 
@@ -187,6 +265,8 @@ function checkDirectorGraphSidecar(portfolioRoot) {
     id: 'lookbook-director-graph',
     label: 'lookBOOK director LangGraph',
     endpoint: 'POST /run (sidecar :7791)',
+    port: 7791,
+    service_url: base,
     status: modulesReady ? (online ? 'online' : 'ready') : 'incomplete',
     modules_ready: modulesReady,
     sidecar_online: online,
@@ -226,6 +306,8 @@ function checkVisualStoryBridge(portfolioRoot) {
     id: 'lookbook-cineforge',
     label: 'lookBOOK → cineforge shot graph',
     endpoint: 'POST /projects/{id}/ingest/lookbook',
+    port: 8765,
+    service_url: healthUrl.replace(/\/health$/, ''),
     status,
     modules_ready: modulesReady,
     e2e_script: scriptReady,
@@ -300,6 +382,7 @@ function buildPipelineOverview({ registry = { projects: [], active: null }, port
     milestones: milestones.milestones,
     bridges: BRIDGES,
     bridge_health: [
+      checkLookbookLabBridge(root),
       checkVisualStoryBridge(root),
       checkStoryRenderBridge(root),
       checkRenderGraphSidecar(root),
@@ -308,10 +391,19 @@ function buildPipelineOverview({ registry = { projects: [], active: null }, port
     integration_matrix: INTEGRATION_MATRIX,
     projects,
     active_project: buildProjectOverview(activeDetail),
+    port_registry: PORT_REGISTRY,
     sources: {
       milestones: fs.existsSync(milestonesPath) ? milestonesPath : null,
       pipeline_integrations: path.join(root, 'docs', 'PIPELINE_INTEGRATIONS.md'),
+      pipeline_operator_runbook: path.join(root, 'docs', 'PIPELINE_OPERATOR_RUNBOOK.md'),
+      pipeline_session_plan: path.join(root, 'docs', 'PIPELINE_SESSION_PLAN_20.md'),
       portfolio_overview: path.join(root, '_PORTFOLIO_PIPELINE_OVERVIEW.md'),
+      eval_artifacts: {
+        harness: path.join(root, 'scripts', '.pipeline-eval-last-run.json'),
+        research_story: path.join(root, 'scripts', '.pipeline-research-story-last-run.json'),
+        visual_story: path.join(root, 'scripts', '.pipeline-visual-story-last-run.json'),
+        story_render: path.join(root, 'scripts', '.pipeline-story-render-last-run.json'),
+      },
     },
   };
 }
@@ -319,12 +411,15 @@ function buildPipelineOverview({ registry = { projects: [], active: null }, port
 module.exports = {
   buildPipelineOverview,
   buildProjectOverview,
+  checkLookbookLabBridge,
   checkVisualStoryBridge,
   checkStoryRenderBridge,
   checkRenderGraphSidecar,
   checkDirectorGraphSidecar,
+  probeLookbookLabHealth,
   detectBrain,
   parseMilestones,
   BRIDGES,
   INTEGRATION_MATRIX,
+  PORT_REGISTRY,
 };

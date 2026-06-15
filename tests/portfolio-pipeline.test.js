@@ -5,6 +5,9 @@ const {
   buildPipelineOverview,
   buildProjectOverview,
   checkVisualStoryBridge,
+  checkStoryRenderBridge,
+  checkRenderGraphSidecar,
+  checkDirectorGraphSidecar,
   detectBrain,
   parseMilestones,
 } = require('../portfolio-pipeline');
@@ -67,5 +70,26 @@ describe('portfolio-pipeline', () => {
     });
     assert.ok(Array.isArray(report.bridge_health));
     assert.strictEqual(report.bridge_health[0].id, 'lookbook-cineforge');
+    assert.ok(report.bridge_health.some((b) => b.id === 'story-render-chain'));
+    assert.ok(report.bridge_health.some((b) => b.id === 'cineforge-render-graph'));
+    assert.ok(report.bridge_health.some((b) => b.id === 'lookbook-director-graph'));
+  });
+
+  it('checkStoryRenderBridge reports script readiness', () => {
+    const health = checkStoryRenderBridge(PORTFOLIO_ROOT);
+    assert.strictEqual(health.id, 'story-render-chain');
+    assert.strictEqual(health.e2e_script, true);
+  });
+
+  it('checkRenderGraphSidecar reports module readiness', () => {
+    const health = checkRenderGraphSidecar(PORTFOLIO_ROOT);
+    assert.strictEqual(health.id, 'cineforge-render-graph');
+    assert.strictEqual(health.modules_ready, true);
+  });
+
+  it('checkDirectorGraphSidecar reports module readiness', () => {
+    const health = checkDirectorGraphSidecar(PORTFOLIO_ROOT);
+    assert.strictEqual(health.id, 'lookbook-director-graph');
+    assert.strictEqual(health.modules_ready, true);
   });
 });

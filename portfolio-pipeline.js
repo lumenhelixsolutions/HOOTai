@@ -118,6 +118,82 @@ function probeHttpOk(url, timeoutSec = 2) {
   }
 }
 
+function checkStoryRenderBridge(portfolioRoot) {
+  const root = portfolioRoot || process.cwd();
+  const e2eScript = path.join(root, 'scripts', 'pipeline-story-render.ps1');
+  const lastRunPath = path.join(root, 'scripts', '.pipeline-story-render-last-run.json');
+  const lastRun = readJsonIfExists(lastRunPath);
+  const cineforgeUrl = process.env.CINEFORGE_URL || 'http://127.0.0.1:8765/health';
+  const healthUrl = cineforgeUrl.includes('/health') ? cineforgeUrl : `${cineforgeUrl.replace(/\/$/, '')}/health`;
+
+  const scriptReady = fs.existsSync(e2eScript);
+  const e2ePassed = Boolean(lastRun && lastRun.ok);
+  const cineforgeOnline = probeHttpOk(healthUrl);
+
+  let status = 'unknown';
+  if (scriptReady && e2ePassed) status = 'verified';
+  else if (scriptReady) status = 'ready';
+  else status = 'incomplete';
+
+  return {
+    id: 'story-render-chain',
+    label: 'lookBOOK → cineforge render chain',
+    endpoint: 'ingest → living review → render → stitch',
+    status,
+    e2e_script: scriptReady,
+    e2e_script_path: e2eScript,
+    last_e2e: lastRun
+      ? {
+          ok: Boolean(lastRun.ok),
+          finished_at: lastRun.finished_at || lastRun.started_at || null,
+          project_id: lastRun.project_id ?? null,
+          stitched: Boolean(lastRun.stitch?.output_path),
+          error: lastRun.error || null,
+        }
+      : null,
+    cineforge_online: cineforgeOnline,
+    cineforge_health_url: healthUrl,
+  };
+}
+
+function checkRenderGraphSidecar(portfolioRoot) {
+  const root = portfolioRoot || process.cwd();
+  const specPath = path.join(root, 'cineforge', 'render-graph', 'graph.spec.json');
+  const base = process.env.RENDER_GRAPH_URL || 'http://127.0.0.1:7790';
+  const healthUrl = `${base.replace(/\/$/, '')}/health`;
+  const modulesReady = fs.existsSync(specPath);
+  const online = probeHttpOk(healthUrl);
+
+  return {
+    id: 'cineforge-render-graph',
+    label: 'cineforge render LangGraph',
+    endpoint: 'POST /run (sidecar :7790)',
+    status: modulesReady ? (online ? 'online' : 'ready') : 'incomplete',
+    modules_ready: modulesReady,
+    sidecar_online: online,
+    sidecar_health_url: healthUrl,
+  };
+}
+
+function checkDirectorGraphSidecar(portfolioRoot) {
+  const root = portfolioRoot || process.cwd();
+  const specPath = path.join(root, 'lookBOOK', 'director-graph', 'graph.spec.json');
+  const base = process.env.DIRECTOR_GRAPH_URL || 'http://127.0.0.1:7791';
+  const healthUrl = `${base.replace(/\/$/, '')}/health`;
+  const modulesReady = fs.existsSync(specPath);
+  const online = probeHttpOk(healthUrl);
+
+  return {
+    id: 'lookbook-director-graph',
+    label: 'lookBOOK director LangGraph',
+    endpoint: 'POST /run (sidecar :7791)',
+    status: modulesReady ? (online ? 'online' : 'ready') : 'incomplete',
+    modules_ready: modulesReady,
+    sidecar_online: online,
+    sidecar_health_url: healthUrl,
+  };
+}
+
 function checkVisualStoryBridge(portfolioRoot) {
   const root = portfolioRoot || process.cwd();
   const lookbookExport = path.join(root, 'lookBOOK', 'lookbook', 'pipeline', 'cineforge_export.py');
@@ -223,7 +299,12 @@ function buildPipelineOverview({ registry = { projects: [], active: null }, port
     milestone_version: milestones.version,
     milestones: milestones.milestones,
     bridges: BRIDGES,
-    bridge_health: [checkVisualStoryBridge(root)],
+    bridge_health: [
+      checkVisualStoryBridge(root),
+      checkStoryRenderBridge(root),
+      checkRenderGraphSidecar(root),
+      checkDirectorGraphSidecar(root),
+    ],
     integration_matrix: INTEGRATION_MATRIX,
     projects,
     active_project: buildProjectOverview(activeDetail),
@@ -239,6 +320,9 @@ module.exports = {
   buildPipelineOverview,
   buildProjectOverview,
   checkVisualStoryBridge,
+  checkStoryRenderBridge,
+  checkRenderGraphSidecar,
+  checkDirectorGraphSidecar,
   detectBrain,
   parseMilestones,
   BRIDGES,

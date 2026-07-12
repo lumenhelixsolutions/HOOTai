@@ -140,6 +140,9 @@ async function providerChat({ provider, model, apiKey, customEndpoint, contents,
       return ollamaChat(customEndpoint, model, messages);
     case 'llamacpp':
       return llamacppChat(customEndpoint, model, messages);
+    case 'lmstudio':
+    case 'lm-studio':
+      return customChat(customEndpoint, null, model || 'local-model', messages);
     case 'custom':
       return customChat(customEndpoint, apiKey, model || 'default', messages);
     default:

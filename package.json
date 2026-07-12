@@ -1,6 +1,6 @@
 {
   "name": "hoot",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "HOOT — local AI command center. Project-aware agent stack scanner, planner, terminal monitor, launcher, and memory system.",
   "main": "server.js",
   "scripts": {

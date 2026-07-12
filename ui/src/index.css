@@ -197,6 +197,96 @@
     transform: none;
   }
 
+  .hoot-ascii--neon {
+    animation: hootNeonPulse 2.8s ease-in-out infinite;
+    filter: drop-shadow(0 0 6px rgba(103, 232, 249, 0.18));
+  }
+
+  .hoot-ascii--arcade {
+    animation: hootArcadeStep 0.42s steps(2, end) infinite;
+  }
+
+  .hoot-ascii--sentinel {
+    animation: hootAsciiBreathe 3.2s ease-in-out infinite;
+  }
+
+  .hoot-ascii--sentinel .hoot-ascii-scan {
+    background: linear-gradient(90deg, transparent, rgba(74, 222, 128, 0.5), transparent);
+    animation-duration: 1.8s;
+  }
+
+  .hoot-ascii--prism {
+    animation: hootPrismShimmer 4.5s ease-in-out infinite;
+  }
+
+  .hoot-ascii--tufted {
+    animation: hootAsciiBreathe 3.6s ease-in-out infinite;
+  }
+
+  .hoot-ascii--round {
+    animation: hootRoundBlink 5s ease-in-out infinite;
+  }
+
+  .hoot-ascii--barn {
+    animation: hootAsciiBreathe 4.2s ease-in-out infinite;
+  }
+
+  .hoot-ascii--dusk {
+    animation: hootDuskScan 3s ease-in-out infinite;
+  }
+
+  .hoot-float-shell {
+    background: transparent !important;
+  }
+
+  .hoot-float-owl {
+    background: transparent !important;
+    box-shadow: none !important;
+    filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.45));
+  }
+
+  .hoot-deck-owl,
+  .hoot-float-owl {
+    overflow: visible !important;
+    filter: drop-shadow(0 6px 20px rgba(0, 0, 0, 0.42));
+  }
+
+  .hoot-deck-float-shell {
+    background: transparent !important;
+    overflow: visible !important;
+  }
+
+  .hoot-deck-float-bar {
+    border: 1px solid rgba(255, 176, 66, 0.3);
+    background: rgba(10, 9, 7, 0.62);
+    backdrop-filter: blur(18px) saturate(1.25);
+    -webkit-backdrop-filter: blur(18px) saturate(1.25);
+    box-shadow:
+      0 14px 44px rgba(0, 0, 0, 0.42),
+      0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+      inset 0 1px 0 rgba(255, 176, 66, 0.14);
+  }
+
+  .hoot-deck-float-panel {
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(8, 8, 8, 0.55);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32);
+  }
+
+  .hoot-deck-float-stat {
+    border: 1px solid rgba(255, 176, 66, 0.12);
+    background: rgba(255, 176, 66, 0.04);
+  }
+
+  .hoot-deck-float-divider {
+    width: 1px;
+    align-self: stretch;
+    background: linear-gradient(180deg, transparent, rgba(255, 176, 66, 0.28), transparent);
+    opacity: 0.7;
+  }
+
   .hoot-ascii--cognitive .hoot-ascii-line {
     transform: none;
   }
@@ -283,6 +373,33 @@
     50% { transform: translateY(-3px); }
   }
 
+  @keyframes hootNeonPulse {
+    0%, 100% { opacity: 0.9; filter: drop-shadow(0 0 4px rgba(103, 232, 249, 0.12)); }
+    50% { opacity: 1; filter: drop-shadow(0 0 10px rgba(103, 232, 249, 0.28)); }
+  }
+
+  @keyframes hootArcadeStep {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-1px); }
+  }
+
+  @keyframes hootPrismShimmer {
+    0%, 100% { opacity: 0.94; }
+    40% { opacity: 1; filter: brightness(1.06); }
+    60% { opacity: 0.98; filter: brightness(1.02); }
+  }
+
+  @keyframes hootRoundBlink {
+    0%, 92%, 100% { opacity: 1; }
+    94% { opacity: 0.55; }
+    96% { opacity: 1; }
+  }
+
+  @keyframes hootDuskScan {
+    0%, 100% { opacity: 0.88; }
+    50% { opacity: 1; filter: brightness(1.08); }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .hoot-ascii-emit-glyph {
       animation: none;
@@ -342,3 +459,64 @@
 }
 .hoot-menu-label { flex: 1; }
 .hoot-menu-hint { font-size: 10px; opacity: 0.45; }
+
+/* Ant Design 6 + HOOT sidebar alignment */
+.hoot-app-shell aside .ant-menu-inline-collapsed {
+  --ant-menu-inline-collapsed-width: 88px;
+}
+
+/* Ensure Ant Design overlays sit above custom shell but below mascot float */
+.ant-tooltip,
+.ant-popover,
+.ant-dropdown,
+.ant-modal-wrap,
+.ant-drawer {
+  z-index: 1070 !important;
+}
+.hoot-mascot-float,
+.hoot-mascot-container {
+  z-index: 9999 !important;
+}
+
+/* Ant Design 6 global layout safeguards — preserve HOOT typography & spacing */
+html {
+  line-height: 1.5;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.15;
+  margin: 0;
+}
+
+p {
+  margin: 0 0 1em;
+}
+
+p:last-child {
+  margin-bottom: 0;
+}
+
+/* Ant Design cards should not add unexpected vertical margins */
+.ant-card {
+  margin-bottom: 0;
+}
+
+/* Keep Ant Design menu items compact and readable in the HOOT sidebar */
+.ant-menu {
+  font-size: inherit;
+}
+
+.ant-menu-inline-collapsed .ant-menu-item {
+  justify-content: center;
+  padding-inline: 0 !important;
+}
+
+.ant-menu-item {
+  align-items: center;
+}
+
+.ant-menu-item .ant-menu-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

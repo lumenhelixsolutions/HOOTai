@@ -102,7 +102,7 @@ export function NodeConfigPanel({
             <button
               type="button"
               onClick={onFilterToggle}
-              title="Show loaded models only"
+              title="Filter to Ollama models currently loaded in memory — green ● means ready to launch now without a pull."
               aria-pressed={filterLoadedOnly}
               className={`rounded-md border px-2 py-1.5 text-[10px] ${
                 filterLoadedOnly ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-400" : "border-border text-muted-foreground"
@@ -311,7 +311,8 @@ function InstallCard({ tool, scan, onCopy, copied, installed }: { tool: any; sca
   const cmd = tool.install_windows || tool.install_guide || tool.install || "See official docs";
   const isCopied = copied === tool.id;
   const envKeys = scan?.env ? Object.entries(scan.env).filter(([, v]: [string, any]) => v?.present).map(([k]) => k) : [];
-  const needsKey = tool.required_env?.length && !tool.required_env.some((k: string) => envKeys.includes(k));
+  const requiredEnv = Array.isArray(tool.required_env) ? tool.required_env : [];
+  const needsKey = requiredEnv.length > 0 && !requiredEnv.some((k: string) => envKeys.includes(k));
   return (
     <div className={`flex flex-col gap-2.5 rounded-xl border p-4 ${installed ? "border-emerald-400/15 bg-emerald-400/[0.03]" : "hoot-card-soft"}`}>
       <div className="flex items-center justify-between">
@@ -340,7 +341,7 @@ function InstallCard({ tool, scan, onCopy, copied, installed }: { tool: any; sca
       </div>
       {tool.prerequisites && <div className="text-[11px] opacity-50">Requires: {tool.prerequisites}</div>}
       {needsKey && (
-        <div className="rounded-md border border-red-400/15 bg-red-400/[0.06] p-2 text-[11px] text-red-400">Missing API key: {tool.required_env.join(", ")}</div>
+        <div className="rounded-md border border-red-400/15 bg-red-400/[0.06] p-2 text-[11px] text-red-400">Missing API key: {requiredEnv.join(", ")}</div>
       )}
       {tool.docs && (
         <div className="flex flex-wrap gap-1.5">

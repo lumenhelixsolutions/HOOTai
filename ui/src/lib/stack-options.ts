@@ -1,4 +1,5 @@
 import { Brain, Cpu, FileOutput, Terminal, Wrench, Server, Box, Gauge, GitBranch, Sparkles } from "lucide-react";
+import { asScanArray, normalizeLoadedModels } from "@/lib/scan-normalize";
 
 export interface StackNode {
   id: string;
@@ -61,17 +62,34 @@ export const RESEARCH_CATEGORIES = [
 ];
 
 export function isModelLoaded(scan: any, modelId: string) {
-  const loaded = scan?.ollama?.loaded_models || [];
+  const loaded = normalizeLoadedModels(scan);
   return loaded.some((m: any) => m.name === modelId || m.name === `${modelId}:latest` || m.name?.startsWith(`${modelId}:`));
 }
 
 export function buildLlmOptions(scan: any) {
-  const loaded = scan?.ollama?.loaded_models || [];
+  const loaded = normalizeLoadedModels(scan);
   const seen = new Set<string>();
   const options = LLM_OPTIONS.map((l) => ({ ...l, loaded: isModelLoaded(scan, l.id) }));
-  const llamaBackend = (scan?.local_models?.backends || []).find((b: any) => b.id === "llamacpp");
+  const localBackends = asScanArray(scan?.local_models?.backends);
+  const lmStudioBackend = localBackends.find((b: any) => b.id === "lm-studio");
+  const llamaBackend = localBackends.find((b: any) => b.id === "llamacpp");
+  if (lmStudioBackend?.present) {
+    const models = Array.isArray(lmStudioBackend.models) ? lmStudioBackend.models : [];
+    for (const model of models.slice(0, 6).reverse()) {
+      const id = String(model?.name || '').trim();
+      if (!id || options.some((o) => o.id === id)) continue;
+      options.unshift({
+        id,
+        name: `${id} · LM Studio`,
+        context: model?.context_length || model?.context || lmStudioBackend.server?.context_size || 8192,
+        backend: "lmstudio",
+        mode: "local",
+        loaded: Boolean(lmStudioBackend.server?.reachable),
+      });
+    }
+  }
   if (llamaBackend?.present) {
-    const ggufs = scan?.local_models?.discovered_ggufs || [];
+    const ggufs = asScanArray(scan?.local_models?.discovered_ggufs);
     options.unshift({
       id: "llamacpp-local",
       name: `llama.cpp (${ggufs[0]?.name || "GGUF"})`,
@@ -91,15 +109,16 @@ export function buildLlmOptions(scan: any) {
 }
 
 export function buildAgentOptions(scan: any) {
+  const coders = asScanArray<any>(scan?.coders);
   return [...AGENT_OPTIONS]
     .sort((a, b) => {
-      const aOk = (scan?.coders || []).find((c: any) => c.id === a.id)?.detection?.present ? 1 : 0;
-      const bOk = (scan?.coders || []).find((c: any) => c.id === b.id)?.detection?.present ? 1 : 0;
+      const aOk = coders.find((c: any) => c.id === a.id)?.detection?.present ? 1 : 0;
+      const bOk = coders.find((c: any) => c.id === b.id)?.detection?.present ? 1 : 0;
       return bOk - aOk;
     })
     .map((a) => ({
       ...a,
-      present: Boolean((scan?.coders || []).find((c: any) => c.id === a.id)?.detection?.present),
+      present: Boolean(coders.find((c: any) => c.id === a.id)?.detection?.present),
     }));
 }
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ProviderDialMark from "./ProviderDialMark";
 import GaugeRing from "./GaugeRing";
 import {
   type ProviderRow,
@@ -10,6 +11,7 @@ import {
   liveRemainingFraction,
   formatTimeLabel,
 } from "@/lib/cooldown";
+import { getTooltip } from "@/lib/tooltips";
 
 type PatchFn = (body: { provider?: string; status?: string; cooldown_until?: string | null; preset?: string }) => Promise<unknown>;
 
@@ -49,22 +51,26 @@ export default function ProviderGauge({
   const isDailyReset = row.limits_ref?.limit_type === "daily_reset";
 
   return (
-    <div className="hoot-card-soft flex flex-col items-center rounded-2xl p-4">
+    <div
+      className="hoot-card-soft flex flex-col items-center rounded-2xl p-4"
+      title={`${getTooltip("deck.gauge.provider").body} · ${row.label || id}: ${state}`}
+    >
       <GaugeRing size={size} stroke={9} value={ringValue} color={color} glow={state !== "unknown"} pulse={isLocal && false}>
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center gap-0.5">
+          <ProviderDialMark provider={id} size={Math.max(18, Math.round(size * 0.22))} dimmed={state === "cooldown"} />
           {state === "cooldown" && remaining !== null ? (
             <>
-              <div className="font-mono text-lg font-semibold tabular-nums text-foreground">{formatClock(remaining)}</div>
-              <div className={`text-[9px] uppercase tracking-[0.16em] ${nearlyBack ? "text-amber-400" : STATE_COLORS.cooldown.text}`}>
+              <div className="font-mono text-sm font-semibold tabular-nums text-foreground">{formatClock(remaining)}</div>
+              <div className={`text-[8px] uppercase tracking-[0.14em] ${nearlyBack ? "text-amber-400" : STATE_COLORS.cooldown.text}`}>
                 {nearlyBack ? "almost" : "locked"}
               </div>
             </>
           ) : (
             <>
-              <div className={`text-[13px] font-semibold uppercase tracking-[0.14em] ${STATE_COLORS[state].text}`}>
+              <div className={`text-[10px] font-semibold uppercase tracking-[0.12em] ${STATE_COLORS[state].text}`}>
                 {STATE_COLORS[state].label}
               </div>
-              {isLocal && <span className="mt-1 h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400" />}
+              {isLocal && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400" />}
             </>
           )}
         </div>

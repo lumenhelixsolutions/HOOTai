@@ -135,7 +135,7 @@ export default function ProfilesPage() {
       if (target === "profiles-easy-mode") setViewMode("easy");
       if (target === "profiles-launch-top" && easyTopPick) launchProfile(easyTopPick);
     });
-  });
+  }, [easyTopPick, registerActionHandler]);
 
   if (loading) {
     return <div style={{ minHeight: "50vh", display: "grid", placeItems: "center", opacity: 0.56 }}>Loading profiles…</div>;
@@ -147,10 +147,10 @@ export default function ProfilesPage() {
         <section style={{ padding: 22, borderRadius: 22, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 11, opacity: 0.42, letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 6 }}>Profile Command</div>
-              <div style={{ fontSize: 28, color: "#ffffff", fontWeight: 600, letterSpacing: "-0.05em" }}>{stats.total} launch profiles, organized by agent.</div>
+              <div style={{ fontSize: 11, opacity: 0.42, letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 6 }}>Profile Library</div>
+              <div style={{ fontSize: 28, color: "#ffffff", fontWeight: 600, letterSpacing: "-0.05em" }}>{stats.total} launch profiles, organized as a reusable catalog.</div>
               <div style={{ fontSize: 14, opacity: 0.68, lineHeight: 1.7, marginTop: 10 }}>
-                Easy mode is a 1-2-3 picker. Advanced mode groups every profile by agent with telemetry.
+                Launch Center is the guided review-and-run surface. This page stays focused on browsing, filtering, and inspecting the full profile library.
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>

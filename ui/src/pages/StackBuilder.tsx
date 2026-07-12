@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/Toast";
@@ -23,6 +23,8 @@ import {
   WizardStepper,
 } from "@/components/builder/parts";
 import { InstallTab, NodeConfigPanel, ResearchTab, TemplateCard } from "@/components/builder/tabs";
+import { HOOT_ACTIONS } from "@/lib/hoot-control";
+import { asScanArray } from "@/lib/scan-normalize";
 
 export default function StackBuilder() {
   const [nodes, setNodes] = useState<StackNode[]>([]);
@@ -42,6 +44,7 @@ export default function StackBuilder() {
   const [launching, setLaunching] = useState(false);
   const [saving, setSaving] = useState(false);
   const [wizardStep, setWizardStep] = useState<WizardStep>("agent");
+  const [builderMode, setBuilderMode] = useState<"basic" | "advanced">("basic");
   const [filterLoadedOnly, setFilterLoadedOnly] = useState(false);
   const [researchCategory, setResearchCategory] = useState<string | null>(null);
   const [vaultKeys, setVaultKeys] = useState<Set<string>>(new Set());
@@ -58,7 +61,7 @@ export default function StackBuilder() {
 
   useEffect(() => {
     Promise.all([
-      api.runScan().catch(() => null),
+      api.getScanCached().catch(() => api.runScan().catch(() => null)),
       api.getCatalog().catch(() => null),
       api.getResearch().catch(() => null),
       api.getMcp().catch(() => null),
@@ -81,6 +84,7 @@ export default function StackBuilder() {
       stackScore: score,
       stackIssues: issues.map((i) => i.text),
       nodeCount: nodes.length,
+      builderMode,
       wizardStep: nodes.length === 0 ? wizardStep : hasAgent && !hasLlm ? "llm" : hasAgent && hasLlm ? "review" : wizardStep,
       hasAgent,
       hasLlm,
@@ -88,7 +92,7 @@ export default function StackBuilder() {
       selectedNodeType: selectedNode?.type || null,
       toolFromMcp: selectedNode?.type === "tool" ? Boolean(selectedNode.config.mcpServer) : false,
     });
-  }, [score, issues, nodes.length, wizardStep, hasAgent, hasLlm, launching, selectedNode, setPageContext]);
+  }, [score, issues, nodes.length, builderMode, wizardStep, hasAgent, hasLlm, launching, selectedNode, setPageContext]);
 
   const analyze = useCallback(() => {
     if (!scan) return;
@@ -238,16 +242,18 @@ export default function StackBuilder() {
 
   const missingTools = useMemo(() => {
     if (!scan || !catalog) return [];
-    return (catalog.tools || []).filter((t: any) => {
-      const coder = (scan.coders || []).find((c: any) => c.id === t.id || c.command === t.command);
+    const coders = asScanArray(scan.coders);
+    return asScanArray(catalog.tools).filter((t: any) => {
+      const coder = coders.find((c: any) => c.id === t.id || c.command === t.command);
       return !coder?.detection?.present;
     });
   }, [scan, catalog]);
 
   const installedTools = useMemo(() => {
     if (!scan || !catalog) return [];
-    return (catalog.tools || []).filter((t: any) => {
-      const coder = (scan.coders || []).find((c: any) => c.id === t.id || c.command === t.command);
+    const coders = asScanArray(scan.coders);
+    return asScanArray(catalog.tools).filter((t: any) => {
+      const coder = coders.find((c: any) => c.id === t.id || c.command === t.command);
       return coder?.detection?.present;
     });
   }, [scan, catalog]);
@@ -287,6 +293,33 @@ export default function StackBuilder() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [researchCategory, mcpCatalog, agentOptions, llmOptions, research]);
 
+  const prefabCards = useMemo(
+    () => [
+      {
+        action: HOOT_ACTIONS.PREFAB_LOCAL,
+        templateId: "local-audit",
+        title: "Local prefab",
+        eyebrow: "Private workstation",
+        detail: "Use what is already installed on this machine, stay local-first, and keep setup friction low.",
+      },
+      {
+        action: HOOT_ACTIONS.PREFAB_CLOUD,
+        templateId: "cloud-research",
+        title: "Cloud prefab",
+        eyebrow: "Fastest capability ramp",
+        detail: "Favor hosted models and remote capacity when speed and breadth matter more than offline isolation.",
+      },
+      {
+        action: HOOT_ACTIONS.PREFAB_HYBRID,
+        templateId: "hybrid-copilot",
+        title: "Hybrid prefab",
+        eyebrow: "Balanced control",
+        detail: "Blend local agent execution with cloud reasoning or APIs for systems that need both reach and control.",
+      },
+    ],
+    [],
+  );
+
   const copyText = (text: string, id: string) => {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(id);
@@ -294,49 +327,131 @@ export default function StackBuilder() {
     });
   };
 
+  const coachActionRef = useRef<(target: string) => void>(() => {});
+  coachActionRef.current = (target) => {
+    if (target === "wizard-agent") {
+      setBuilderMode("advanced");
+      setTab("builder");
+      setWizardStep("agent");
+    } else if (target === "wizard-llm") {
+      setBuilderMode("advanced");
+      setTab("builder");
+      setWizardStep("llm");
+      if (!hasAgent) addNode("agent");
+      if (!hasLlm) addNode("llm");
+    } else if (target === HOOT_ACTIONS.PREFAB_LOCAL) {
+      setBuilderMode("basic");
+      applyTemplate("local-audit");
+    } else if (target === HOOT_ACTIONS.PREFAB_CLOUD) {
+      setBuilderMode("basic");
+      applyTemplate("cloud-research");
+    } else if (target === HOOT_ACTIONS.PREFAB_HYBRID) {
+      setBuilderMode("basic");
+      applyTemplate("hybrid-copilot");
+    } else if (target === HOOT_ACTIONS.PREFAB_REVIEW) {
+      setBuilderMode("advanced");
+      setTab("builder");
+      setWizardStep("review");
+    } else if (target === "template-local-audit") applyTemplate("local-audit");
+    else if (target.startsWith("template-")) applyTemplate(target.replace("template-", ""));
+    else if (target === "tab-install") setTab("install");
+    else if (target === "filter-loaded") setFilterLoadedOnly(true);
+    else if (target === "add-mcp-git") addMcpGitTool();
+    else if (target === "save-stack") saveStack();
+    else if (target === "launch-stack") launchStack();
+  };
+
   useEffect(() => {
-    return registerActionHandler((target) => {
-      if (target === "wizard-agent") {
-        setTab("builder");
-        setWizardStep("agent");
-      } else if (target === "wizard-llm") {
-        setTab("builder");
-        setWizardStep("llm");
-        if (!hasAgent) addNode("agent");
-        if (!hasLlm) addNode("llm");
-      } else if (target === "template-local-audit") applyTemplate("local-audit");
-      else if (target.startsWith("template-")) applyTemplate(target.replace("template-", ""));
-      else if (target === "tab-install") setTab("install");
-      else if (target === "filter-loaded") setFilterLoadedOnly(true);
-      else if (target === "add-mcp-git") addMcpGitTool();
-      else if (target === "save-stack") saveStack();
-      else if (target === "launch-stack") launchStack();
-    });
-  });
+    return registerActionHandler((target) => coachActionRef.current(target));
+  }, [registerActionHandler]);
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="m-0 font-serif text-xl text-foreground">Stack Builder</h2>
-          <p className="m-0 mt-1 text-xs opacity-50">Guided stack composer — HOOT walks you through Agent → Model → Tools → Review</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="max-w-3xl">
+          <div className="text-[11px] uppercase tracking-[0.16em] opacity-45">Prefab stack construction</div>
+          <h2 className="m-0 mt-1 font-serif text-xl text-foreground">Stack Builder</h2>
+          <p className="m-0 mt-1 text-xs opacity-60">
+            {builderMode === "basic"
+              ? "Start with a local, cloud, or hybrid prefab matched to the systems HOOT can see."
+              : "Full composer mode for Agent → Model → Tools → Review without losing any underlying capability."}
+          </p>
         </div>
-        <div className="flex gap-2" role="tablist" aria-label="Builder tabs">
-          {(["builder", "research", "install"] as const).map((t) => (
-            <button
-              key={t}
-              role="tab"
-              aria-selected={tab === t}
-              onClick={() => setTab(t)}
-              className={`rounded-lg border px-4 py-2 text-xs capitalize ${tab === t ? "hoot-gold-chip font-semibold" : "border-border bg-foreground/[0.02] text-foreground/80"}`}
-            >
-              {t}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-full border border-border bg-foreground/[0.03] p-1">
+            {(["basic", "advanced"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setBuilderMode(mode)}
+                className={`rounded-full px-3 py-1.5 text-[11px] uppercase tracking-[0.14em] ${builderMode === mode ? "hoot-gold-chip font-semibold" : "text-foreground/70"}`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2" role="tablist" aria-label="Builder tabs">
+            {(["builder", "research", "install"] as const).map((t) => (
+              <button
+                key={t}
+                role="tab"
+                aria-selected={tab === t}
+                onClick={() => setTab(t)}
+                className={`rounded-lg border px-4 py-2 text-xs capitalize ${tab === t ? "hoot-gold-chip font-semibold" : "border-border bg-foreground/[0.02] text-foreground/80"}`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {tab === "builder" && (
+      {tab === "builder" && builderMode === "basic" && (
+        <div className="grid gap-3 xl:grid-cols-[1.25fr_0.75fr]">
+          <div className="hoot-card-soft rounded-2xl p-4">
+            <div className="text-[11px] uppercase tracking-[0.14em] opacity-45">Basic workflow</div>
+            <div className="mt-2 text-sm opacity-70">Pick the deployment shape first. HOOT will load a safe prefab, then you can refine or open the advanced composer.</div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              {prefabCards.map((card) => (
+                <button
+                  key={card.action}
+                  type="button"
+                  onClick={() => {
+                    setBuilderMode("basic");
+                    applyTemplate(card.templateId);
+                  }}
+                  className="rounded-2xl border border-border bg-background/65 p-4 text-left transition hover:border-amber-400/35 hover:bg-amber-400/5"
+                >
+                  <div className="text-[10px] uppercase tracking-[0.16em] opacity-45">{card.eyebrow}</div>
+                  <div className="mt-2 font-semibold">{card.title}</div>
+                  <div className="mt-2 text-xs leading-relaxed opacity-70">{card.detail}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="hoot-card-soft rounded-2xl p-4">
+            <div className="text-[11px] uppercase tracking-[0.14em] opacity-45">What HOOT sees</div>
+            <div className="mt-3 space-y-2 text-xs opacity-75">
+              <div>Loaded models: <span className="font-semibold text-foreground">{llmOptions.filter((item) => item.loaded).length}</span></div>
+              <div>Present agents: <span className="font-semibold text-foreground">{agentOptions.filter((item) => item.present).length}</span></div>
+              <div>Missing tools: <span className="font-semibold text-foreground">{missingTools.length}</span></div>
+              <div>MCP configs: <span className="font-semibold text-foreground">{mcpConfigs.length}</span></div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setBuilderMode("advanced");
+                setWizardStep(nodes.length ? "review" : "agent");
+              }}
+              className="mt-4 rounded-xl border border-border px-3 py-2 text-xs text-foreground/80"
+            >
+              Open advanced composer
+            </button>
+          </div>
+        </div>
+      )}
+
+      {tab === "builder" && (builderMode === "advanced" || nodes.length > 0) && (
         <div className="flex flex-col gap-3">
           <WizardStepper step={wizardStep} onStep={setWizardStep} hasAgent={hasAgent} hasLlm={hasLlm} hasTool={nodes.some((n) => n.type === "tool")} />
           <div className="flex flex-col gap-4 lg:h-[calc(100vh-280px)] lg:flex-row">

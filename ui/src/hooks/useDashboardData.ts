@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
+import { useSessionPoll } from "@/hooks/useSessionPoll";
 import type { TokenBurnReport } from "@/components/TokenBurnPanel";
 
 export interface DashboardData {
@@ -16,7 +17,6 @@ export interface DashboardData {
 
 export interface DashboardState extends DashboardData {
   loading: boolean;
-  /** Data sources that rejected on the last load (widget-level error states). */
   failedSources: Set<string>;
   reload: () => void;
   setProjects: (p: any[]) => void;
@@ -24,22 +24,20 @@ export interface DashboardState extends DashboardData {
   setTokenBurn: (t: TokenBurnReport | null) => void;
 }
 
-/**
- * Loads every dashboard data source in parallel, tracking failures per source
- * so each widget can render its own error state instead of one global toast.
- */
+const EMPTY_DATA: DashboardData = {
+  profiles: [],
+  projects: [],
+  activeProjectData: null,
+  scan: null,
+  usage: null,
+  portfolio: null,
+  research: null,
+  memory: "",
+  tokenBurn: null,
+};
+
 export function useDashboardData(onTotalFailure: () => void): DashboardState {
-  const [data, setData] = useState<DashboardData>({
-    profiles: [],
-    projects: [],
-    activeProjectData: null,
-    scan: null,
-    usage: null,
-    portfolio: null,
-    research: null,
-    memory: "",
-    tokenBurn: null,
-  });
+  const [data, setData] = useState<DashboardData>(EMPTY_DATA);
   const [loading, setLoading] = useState(true);
   const [failedSources, setFailedSources] = useState<Set<string>>(new Set());
   const [reloadKey, setReloadKey] = useState(0);
@@ -56,47 +54,83 @@ export function useDashboardData(onTotalFailure: () => void): DashboardState {
     let cancelled = false;
     setLoading(true);
     const failures = new Set<string>();
-    const track = <T,>(name: string, promise: Promise<T>, fallback: T): Promise<T> =>
-      promise.catch(() => {
-        failures.add(name);
-        return fallback;
-      });
 
-    Promise.all([
-      track("profiles", api.getProfiles(), [] as any[]),
-      track("projects", api.getProjects(), { projects: [], active: null }),
-      track("activeProject", api.getActiveProject(), { active: null, project: null }),
-      track("scan", api.runScan(), null),
-      track("usage", api.getUsage(), null),
-      track("portfolio", api.getPortfolioHealth(), null),
-      track("research", api.getResearch(), null),
-      track("memory", api.getMemory(), { text: "" }),
-      track("tokenBurn", api.getTokenBurn(), null),
-    ]).then(([profiles, projectData, activeData, scan, usage, portfolio, research, memoryData, tokenBurn]) => {
-      if (cancelled || !mounted.current) return;
-      setData({
-        profiles: profiles || [],
-        projects: projectData?.projects || [],
-        activeProjectData: activeData || { active: null, project: null },
-        scan,
-        usage,
-        portfolio,
-        research,
-        memory: memoryData?.text || "",
-        tokenBurn,
+    api
+      .getBootstrap()
+      .then((bootstrap) => {
+        if (cancelled || !mounted.current) return;
+        setData({
+          profiles: bootstrap.profiles || [],
+          projects: bootstrap.projects?.projects || [],
+          activeProjectData: bootstrap.activeProject || { active: bootstrap.projects?.active || null, project: null },
+          scan: bootstrap.scan,
+          usage: bootstrap.usage,
+          portfolio: bootstrap.portfolio,
+          research: null,
+          memory: bootstrap.memory?.text || "",
+          tokenBurn: bootstrap.tokenBurn || null,
+        });
+        setLoading(false);
+
+        api.getResearch()
+          .then((research) => {
+            if (cancelled || !mounted.current) return;
+            setData((prev) => ({ ...prev, research }));
+          })
+          .catch(() => {
+            failures.add("research");
+            if (!cancelled && mounted.current) setFailedSources(new Set(failures));
+          });
+      })
+      .catch(async () => {
+        const track = async <T,>(name: string, promise: Promise<T>, fallback: T): Promise<T> => {
+          try {
+            return await promise;
+          } catch {
+            failures.add(name);
+            return fallback;
+          }
+        };
+        const [profiles, projectData, activeData, scan, usage, portfolio, research, memoryData, tokenBurn] = await Promise.all([
+          track("profiles", api.getProfiles(), [] as any[]),
+          track("projects", api.getProjects(), { projects: [], active: null }),
+          track("activeProject", api.getActiveProject(), { active: null, project: null }),
+          track("scan", api.getScanCached().catch(() => api.runScan()), null),
+          track("usage", api.getUsage(), null),
+          track("portfolio", api.getPortfolioHealth(), null),
+          track("research", api.getResearch(), null),
+          track("memory", api.getMemory(), { text: "" }),
+          track("tokenBurn", api.getTokenBurn(), null),
+        ]);
+        if (cancelled || !mounted.current) return;
+        setData({
+          profiles: profiles || [],
+          projects: projectData?.projects || [],
+          activeProjectData: activeData || { active: null, project: null },
+          scan,
+          usage,
+          portfolio,
+          research,
+          memory: memoryData?.text || "",
+          tokenBurn,
+        });
+        setLoading(false);
+        if (failures.size >= 9) onTotalFailure();
+        setFailedSources(new Set(failures));
       });
-      setFailedSources(failures);
-      setLoading(false);
-      if (failures.size >= 9) onTotalFailure();
-    });
 
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reloadKey]);
+  }, [onTotalFailure, reloadKey]);
+
+  useEffect(() => {
+    if (!loading) setFailedSources((prev) => new Set(prev));
+  }, [loading]);
 
   const reload = useCallback(() => setReloadKey((k) => k + 1), []);
+
+  useSessionPoll(reload, { immediate: false });
 
   return useMemo(
     () => ({

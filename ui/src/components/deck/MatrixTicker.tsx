@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { type CooldownRegistry, formatTimeLabel } from "@/lib/cooldown";
+import HoverTip from "@/components/HoverTip";
 
 /** Always-visible registry line — the paste-ready provider matrix header. */
 export default function MatrixTicker({ registry }: { registry: CooldownRegistry }) {
@@ -28,14 +29,15 @@ export default function MatrixTicker({ registry }: { registry: CooldownRegistry 
       {registry.updated_at && (
         <div className="shrink-0 font-mono text-[10px] opacity-40">upd {formatTimeLabel(registry.updated_at)}</div>
       )}
-      <button
-        type="button"
-        onClick={copy}
-        title="Copy registry line for your next AI chat"
-        className="shrink-0 rounded-lg border border-border px-2 py-1.5 opacity-70 transition hover:opacity-100"
-      >
-        {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
-      </button>
+      <HoverTip id="deck.matrix.copy">
+        <button
+          type="button"
+          onClick={copy}
+          className="shrink-0 rounded-lg border border-border px-2 py-1.5 opacity-70 transition hover:opacity-100"
+        >
+          {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+        </button>
+      </HoverTip>
     </div>
   );
 }

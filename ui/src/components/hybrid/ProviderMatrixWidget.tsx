@@ -12,6 +12,8 @@ import {
   liveRemainingFraction,
 } from "@/lib/cooldown";
 import GaugeRing from "@/components/deck/GaugeRing";
+import HoverTip from "@/components/HoverTip";
+import { getTooltip } from "@/lib/tooltips";
 
 /** Dashboard widget: compact mini-gauge strip for the Cooldown Command Deck. */
 export default function ProviderMatrixWidget({
@@ -19,7 +21,7 @@ export default function ProviderMatrixWidget({
 }: {
   onRegistryChange?: (matrixLine: string) => void;
 }) {
-  const { registry, loading, failed, nowMs, reload, patch } = useCooldownRegistry(30000);
+  const { registry, loading, refreshing, failed, nowMs, reload, patch } = useCooldownRegistry();
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -76,12 +78,16 @@ export default function ProviderMatrixWidget({
           {registry.matrix_line}
         </div>
         <div className="flex shrink-0 gap-2">
-          <button type="button" onClick={copyRegistry} className="rounded-lg border border-border px-2.5 py-1.5 text-xs opacity-70 hover:opacity-100" title="Copy registry line">
-            {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-          </button>
-          <button type="button" onClick={reload} className="rounded-lg border border-border px-2.5 py-1.5 text-xs opacity-70 hover:opacity-100" title="Refresh">
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          </button>
+          <HoverTip id="matrix.copy">
+            <button type="button" onClick={copyRegistry} className="rounded-lg border border-border px-2.5 py-1.5 text-xs opacity-70 hover:opacity-100">
+              {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+            </button>
+          </HoverTip>
+          <HoverTip id="matrix.refresh">
+            <button type="button" onClick={reload} className="rounded-lg border border-border px-2.5 py-1.5 text-xs opacity-70 hover:opacity-100">
+              <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
+            </button>
+          </HoverTip>
         </div>
       </div>
 
@@ -101,7 +107,7 @@ export default function ProviderMatrixWidget({
               type="button"
               disabled={busy === id}
               onClick={() => toggle(id)}
-              title={`${row.label}: ${state}${remaining ? ` · ${formatClock(remaining)} left` : ""} · ${limitsLine(row)}`}
+              title={`${getTooltip("matrix.provider").body} · ${row.label}: ${state}${remaining ? ` · ${formatClock(remaining)} left` : ""} · ${limitsLine(row)}`}
               className="flex flex-col items-center gap-1 rounded-xl px-1 py-2 transition hover:bg-foreground/[0.04] disabled:opacity-40"
             >
               <GaugeRing size={52} stroke={5} value={value} color={color} glow={state === "cooldown"}>

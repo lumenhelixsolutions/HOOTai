@@ -6,11 +6,15 @@
  */
 
 import { writeFileSync, mkdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const require = createRequire(import.meta.url);
+const { resolveOllamaBaseUrl } = require('../ollama-url.js');
+
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const ollamaHost = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
+const ollamaHost = resolveOllamaBaseUrl(process.env.OLLAMA_HOST);
 const models = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const outFlag = process.argv.indexOf('--out');
 const outPath = outFlag >= 0 ? process.argv[outFlag + 1] : null;

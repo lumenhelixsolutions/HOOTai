@@ -1,3 +1,4 @@
+import { asScanArray, normalizeLoadedModels } from "@/lib/scan-normalize";
 import { AGENT_OPTIONS, LLM_OPTIONS, type LlmOption, type StackNode } from "./stack-options";
 
 export interface StackIssue {
@@ -46,14 +47,14 @@ export function analyzeStack(
       if (!llm) continue;
       if (llm.mode === "local") {
         if (llm.backend === "llamacpp") {
-          const llamaBackend = (scan.local_models?.backends || []).find((b: any) => b.id === "llamacpp");
+          const llamaBackend = asScanArray(scan.local_models?.backends).find((b: any) => b.id === "llamacpp");
           if (!llamaBackend?.present) push({ nodeId: node.id, severity: "block", text: "llama.cpp binary not detected — set path in Settings", penalty: 30 });
           else if (!llamaBackend.server?.reachable) push({ nodeId: node.id, severity: "warn", text: "llama-server not reachable — start it before launch", penalty: 15 });
         } else {
           const ollama = scan.tools?.ollama;
           if (!ollama?.present) push({ nodeId: node.id, severity: "block", text: `Ollama not installed — required for ${llm.name}`, penalty: 30 });
           else {
-            const loaded = scan.ollama?.loaded_models || [];
+            const loaded = normalizeLoadedModels(scan);
             const isLoaded = loaded.some((m: any) => m.name === llm.id || m.name === `${llm.id}:latest`);
             if (!isLoaded) push({ nodeId: node.id, severity: "warn", text: `${llm.name} is not loaded. Run: ollama pull ${llm.id}`, penalty: 15 });
           }
@@ -71,7 +72,7 @@ export function analyzeStack(
     if (node.type === "agent") {
       const agent = AGENT_OPTIONS.find((a) => a.id === node.config.agent);
       if (!agent) continue;
-      const coder = (scan.coders || []).find((c: any) => c.id === node.config.agent);
+      const coder = asScanArray(scan.coders).find((c: any) => c.id === node.config.agent);
       if (!coder?.detection?.present) push({ nodeId: node.id, severity: "warn", text: `${agent.name} not detected. Install: ${agent.install}`, penalty: 20 });
 
       // compatibility-rules.json: per-agent context floors (e.g. hermes).

@@ -21,7 +21,7 @@ function getModelProvider(): string | undefined {
 /** Browser override — only sent when user explicitly chose a cloud provider. */
 function getApiKeyOverride(): string | undefined {
   const provider = localStorage.getItem("agentdock_model_provider") || "auto";
-  if (provider === "auto" || provider === "ollama" || provider === "llamacpp" || provider === "coach-local") {
+  if (provider === "auto" || provider === "ollama" || provider === "llamacpp" || provider === "lmstudio" || provider === "lm-studio" || provider === "coach-local") {
     return undefined;
   }
   const key = (localStorage.getItem("agentdock_gemini_key") || localStorage.getItem("agentdock_api_key") || "").trim();

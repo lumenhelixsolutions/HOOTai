@@ -3,12 +3,24 @@
 const fs = require('fs');
 const path = require('path');
 
-const CANONICAL_DIR_NAMES = new Set(['hoot']);
+const CANONICAL_DIR_NAMES = new Set(['hoot', 'hootai']);
 const LEGACY_DIR_NAMES = new Set(['agentdock']);
 
+const CANONICAL_CANDIDATE_NAMES = ['HootAi', 'Hoot'];
+
 const CANONICAL_HOOT_PATH = process.platform === 'win32'
-  ? 'D:\\projects\\Hoot'
-  : path.join(path.dirname(__dirname), 'Hoot');
+  ? 'D:\\projects\\HootAi'
+  : path.join(path.dirname(__dirname), 'HootAi');
+
+function findCanonicalSibling(parent) {
+  for (const name of CANONICAL_CANDIDATE_NAMES) {
+    const candidate = path.join(parent, name);
+    if (fs.existsSync(path.join(candidate, 'server.js'))) {
+      return path.resolve(candidate);
+    }
+  }
+  return null;
+}
 
 function resolveCanonicalHootRoot(startDir = __dirname) {
   const resolved = path.resolve(startDir);
@@ -16,9 +28,9 @@ function resolveCanonicalHootRoot(startDir = __dirname) {
   if (CANONICAL_DIR_NAMES.has(base)) return resolved;
 
   const parent = path.dirname(resolved);
-  const sibling = path.join(parent, 'Hoot');
-  if (LEGACY_DIR_NAMES.has(base) && fs.existsSync(path.join(sibling, 'server.js'))) {
-    return path.resolve(sibling);
+  const canonicalSibling = findCanonicalSibling(parent);
+  if (LEGACY_DIR_NAMES.has(base) && canonicalSibling) {
+    return canonicalSibling;
   }
   return resolved;
 }
@@ -42,7 +54,7 @@ function assertCanonicalHootRoot(opts = {}) {
   log('LEGACY PATH: D:\\projects\\agentdock is a stale mirror.');
   log(`Canonical HOOT root: ${canonical}`);
   log('Start with: pwsh D:\\projects\\scripts\\start-hoot.ps1');
-  log('         or: cd D:\\projects\\Hoot && node server.js');
+  log('         or: cd D:\\projects\\HootAi && node server.js');
   log('');
 
   if (exitOnLegacy) process.exit(1);

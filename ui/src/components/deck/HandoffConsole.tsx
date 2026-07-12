@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Check, Copy, FileDown, Zap } from "lucide-react";
 import { api } from "@/lib/api";
 import { Panel } from "@/components/dashboard/primitives";
+import { TipIcon } from "@/components/HoverTip";
+import { getTooltip } from "@/lib/tooltips";
 
 /** Save-state generator — produces the strict auto_handoff.md block (manifest §4). */
 export default function HandoffConsole() {
@@ -49,7 +51,7 @@ export default function HandoffConsole() {
   };
 
   return (
-    <Panel title="Save-state console" subtitle="auto_handoff.md · paste-ready project state dump" icon={FileDown}>
+    <Panel title="Save-state console" subtitle="auto_handoff.md · paste-ready project state dump" icon={FileDown} action={<TipIcon id="deck.handoff.generate" />}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -77,7 +79,7 @@ export default function HandoffConsole() {
                 ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-400"
                 : "border-border bg-foreground/5 text-muted-foreground"
             }`}
-            title="When armed, HOOT writes auto_handoff.md automatically the moment a provider is marked COOLDOWN."
+            title={getTooltip("deck.handoff.auto").body}
           >
             auto on cooldown: {autoArmed ? "armed" : "off"}
           </span>
@@ -93,7 +95,7 @@ export default function HandoffConsole() {
           </pre>
           <div className="mt-2 flex flex-wrap items-center gap-3 font-mono text-[10px] opacity-45">
             {generatedAt && <span>generated {new Date(generatedAt).toLocaleTimeString()}</span>}
-            {snapshotPath && <span title={snapshotPath}>written to disk ✓</span>}
+            {snapshotPath && <span title={`${getTooltip("deck.handoff.written").body} · ${snapshotPath}`}>written to disk ✓</span>}
           </div>
         </>
       ) : (

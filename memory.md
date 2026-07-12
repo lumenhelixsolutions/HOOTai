@@ -207,3 +207,227 @@ Profile: codex-patch-test
 Status: observed-run
 Observed: exitCode=0
 Reason: Terminal-monitored AgentDock session s-2026-06-12T00-34-35-459Z-c74173
+
+
+## Evidence: HOOT observation
+Date: 2026-06-12T05:30:13.146Z
+Profile: n/a
+Status: observed-run
+Observed: n/a
+Reason: Phase 4 approval seed
+
+
+## Evidence: HOOT observation
+Date: 2026-06-12T05:30:13.203Z
+Profile: n/a
+Status: observed-run
+Observed: n/a
+Reason: Phase 4 approval seed
+
+
+## Evidence: HOOT observation
+Date: 2026-06-12T05:30:19.877Z
+Profile: n/a
+Status: success
+Observed: n/a
+Reason: Launch approval flow test
+
+
+## Evidence: HOOT observation
+Date: 2026-06-12T05:30:20.636Z
+Profile: n/a
+Status: known-good
+Observed: n/a
+Reason: Coach gate verified
+
+
+## Evidence: local-safe-audit run
+Date: 2026-06-12T05:30:24.355Z
+Profile: local-safe-audit
+Status: observed-failure
+Observed: exitCode=1
+Reason: Terminal-monitored AgentDock session s-2026-06-12T05-30-20-306Z-752397
+
+
+## Evidence: local-safe-audit run
+Date: 2026-06-12T05:30:24.619Z
+Profile: local-safe-audit
+Status: observed-failure
+Observed: exitCode=1
+Reason: Terminal-monitored AgentDock session s-2026-06-12T05-30-19-975Z-8ade80
+
+
+## Evidence: HOOT observation
+Date: 2026-06-12T05:30:24.654Z
+Profile: n/a
+Status: observed-run
+Observed: n/a
+Reason: Tenth approval flow
+
+
+## Evidence: HOOT observation
+Date: 2026-06-12T05:30:30.887Z
+Profile: n/a
+Status: observed-run
+Observed: n/a
+Reason: Phase 4 approval seed
+
+
+## Evidence: HOOT observation
+Date: 2026-06-12T05:30:30.984Z
+Profile: n/a
+Status: observed-run
+Observed: n/a
+Reason: Phase 4 approval seed
+
+
+## Evidence: HOOT observation
+Date: 2026-06-12T05:30:37.959Z
+Profile: n/a
+Status: success
+Observed: n/a
+Reason: Launch approval flow test
+
+
+## Evidence: HOOT observation
+Date: 2026-06-12T05:30:38.808Z
+Profile: n/a
+Status: known-good
+Observed: n/a
+Reason: Coach gate verified
+
+
+## Evidence: local-safe-audit run
+Date: 2026-06-12T05:30:42.493Z
+Profile: local-safe-audit
+Status: observed-failure
+Observed: exitCode=1
+Reason: Terminal-monitored AgentDock session s-2026-06-12T05-30-38-458Z-89c5d7
+
+
+## Evidence: local-safe-audit run
+Date: 2026-06-12T05:30:42.746Z
+Profile: local-safe-audit
+Status: observed-failure
+Observed: exitCode=1
+Reason: Terminal-monitored AgentDock session s-2026-06-12T05-30-38-061Z-0db66c
+
+
+## Evidence: HOOT observation
+Date: 2026-06-12T05:30:42.780Z
+Profile: n/a
+Status: observed-run
+Observed: n/a
+Reason: Tenth approval flow
+
+
+## Evidence: HOOT observation
+Date: 2026-06-12T05:31:07.584Z
+Profile: n/a
+Status: observed-run
+Observed: n/a
+Reason: Phase 4 approval seed
+
+
+## Evidence: HOOT observation
+Date: 2026-06-12T05:31:07.729Z
+Profile: n/a
+Status: observed-run
+Observed: n/a
+Reason: Phase 4 approval seed
+
+
+## Evidence: HOOT observation
+Date: 2026-06-12T05:31:14.817Z
+Profile: n/a
+Status: success
+Observed: n/a
+Reason: Launch approval flow test
+
+
+## Evidence: HOOT observation
+Date: 2026-06-12T05:31:15.742Z
+Profile: n/a
+Status: known-good
+Observed: n/a
+Reason: Coach gate verified
+
+
+## Evidence: local-safe-audit run
+Date: 2026-06-12T05:31:19.560Z
+Profile: local-safe-audit
+Status: observed-failure
+Observed: exitCode=1
+Reason: Terminal-monitored AgentDock session s-2026-06-12T05-31-15-345Z-ab1017
+
+
+## Evidence: local-safe-audit run
+Date: 2026-06-12T05:31:19.791Z
+Profile: local-safe-audit
+Status: observed-failure
+Observed: exitCode=1
+Reason: Terminal-monitored AgentDock session s-2026-06-12T05-31-14-932Z-cef56c
+
+
+## Evidence: HOOT observation
+Date: 2026-06-12T05:31:19.826Z
+Profile: n/a
+Status: observed-run
+Observed: n/a
+Reason: Tenth approval flow
+
+
+## Evidence: HOOT observation
+Date: 2026-06-12T05:33:33.985Z
+Profile: n/a
+Status: observed-run
+Observed: n/a
+Reason: coach-graph launch approval completed
+
+
+## Evidence: local-safe-audit run
+Date: 2026-06-12T05:33:35.001Z
+Profile: local-safe-audit
+Status: observed-failure
+Observed: exitCode=1
+Reason: Terminal-monitored AgentDock session s-2026-06-12T05-33-33-673Z-8ea892
+
+
+## Evidence: HOOT observation
+Date: 2026-06-15T04:32:43.456Z
+Profile: n/a
+Status: observed-run
+Observed: n/a
+Reason: coach-graph launch approval completed
+
+
+## Evidence: local-safe-audit run
+Date: 2026-06-15T04:32:43.888Z
+Profile: local-safe-audit
+Status: observed-failure
+Observed: exitCode=1
+Reason: Terminal-monitored AgentDock session s-2026-06-15T04-32-43-117Z-c39b9e
+
+
+## Evidence: cloud-architecture-codex run
+Date: 2026-06-18T06:33:27.812Z
+Profile: cloud-architecture-codex
+Status: observed-run
+Observed: exitCode=0
+Reason: Terminal-monitored AgentDock session s-2026-06-18T06-33-26-018Z-f0c9b9
+
+
+## Evidence: local-patch-test run
+Date: 2026-07-04T09:05:32.203Z
+Profile: local-patch-test
+Status: observed-failure
+Observed: exitCode=1
+Reason: Terminal-monitored AgentDock session s-2026-07-04T09-05-26-381Z-9b54c1
+
+
+## Evidence: local-patch-test run
+Date: 2026-07-04T09:22:09.384Z
+Profile: local-patch-test
+Status: observed-failure
+Observed: exitCode=1
+Reason: Terminal-monitored AgentDock session s-2026-07-04T09-22-08-695Z-604e2a

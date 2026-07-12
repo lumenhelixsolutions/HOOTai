@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "updated_at": "2026-06-12T05:31:11.156Z",
+  "hoot_root": "D:\\projects\\Hoot",
+  "telemetry_files": {
+    "kernel": "D:\\projects\\Hoot\\state\\ai_status.json",
+    "mirror": "D:\\projects\\Hoot\\data\\telemetry\\ai_status.json",
+    "files": [
+      "D:\\projects\\Hoot\\state\\ai_status.json",
+      "D:\\projects\\Hoot\\data\\telemetry\\ai_status.json"
+    ]
+  },
+  "providers": {
+    "claude": {
+      "label": "Claude Pro",
+      "status": "ACTIVE",
+      "cooldown_until": null,
+      "limits_ref": {
+        "messages": 45,
+        "window_hours": 5,
+        "recovery_note": "~1 msg / 7 min",
+        "limit_type": "rolling_window",
+        "max_messages": 45,
+        "replenish_rate_minutes": 7.1,
+        "context_penalty": true,
+        "notes": "Long-context sessions can deplete message blocks up to 3x faster."
+      },
+      "last_updated": "2026-06-12T05:27:05.176Z",
+      "source": "manual",
+      "eta": null
+    },
+    "chatgpt": {
+      "label": "ChatGPT Plus",
+      "status": "COOLDOWN",
+      "cooldown_until": "2026-06-12T10:02:27.549Z",
+      "limits_ref": {
+        "messages": 80,
+        "window_hours": 3,
+        "recovery_note": "resets on window boundary",
+        "limit_type": "rolling_window",
+        "max_messages": 80,
+        "replenish_rate_minutes": 2.25,
+        "notes": "Resets 3 hours from execution of each message chunk."
+      },
+      "last_updated": "2026-06-12T05:02:27.549Z",
+      "source": "manual",
+      "eta": "4h 32m"
+    },
+    "gemini": {
+      "label": "Gemini",
+      "status": "COOLDOWN",
+      "cooldown_until": "2026-06-12T10:02:26.732Z",
+      "limits_ref": {
+        "messages": null,
+        "window_hours": null,
+        "recovery_note": "daily reset 08:00 UTC",
+        "limit_type": "daily_reset",
+        "reset_time_utc": "08:00:00",
+        "max_requests": 1500,
+        "notes": "Daily transaction caps hit before context boundaries."
+      },
+      "last_updated": "2026-06-12T05:02:26.732Z",
+      "source": "manual",
+      "eta": "4h 32m"
+    },
+    "kimi": {
+      "label": "Kimi",
+      "status": "COOLDOWN",
+      "cooldown_until": "2026-06-12T08:02:28.195Z",
+      "limits_ref": {
+        "messages": null,
+        "window_hours": null,
+        "recovery_note": "freeze on overuse — 5h lockout",
+        "limit_type": "tier_based",
+        "lockout_duration_hours": 5,
+        "notes": "Context freeze on overflow; rolling recovery block applies instantly."
+      },
+      "last_updated": "2026-06-12T05:02:28.196Z",
+      "source": "manual",
+      "eta": "2h 32m"
+    },
+    "deepseek": {
+      "label": "DeepSeek",
+      "status": "COOLDOWN",
+      "cooldown_until": "2026-06-12T10:02:31.239Z",
+      "limits_ref": {
+        "messages": 50,
+        "window_hours": 3,
+        "recovery_note": "429s at peak load regardless of count",
+        "limit_type": "concurrency_dependent",
+        "max_messages": 50,
+        "replenish_rate_minutes": 3.6,
+        "notes": "Throws 429 during high peak loads regardless of individual message count."
+      },
+      "last_updated": "2026-06-12T05:02:31.240Z",
+      "source": "manual",
+      "eta": "4h 32m"
+    },
+    "perplexity": {
+      "label": "Perplexity Pro",
+      "status": "COOLDOWN",
+      "cooldown_until": "2026-06-12T10:02:29.685Z",
+      "limits_ref": {
+        "messages": null,
+        "window_hours": null,
+        "recovery_note": "daily reset 00:00 UTC",
+        "limit_type": "daily_reset",
+        "reset_time_utc": "00:00:00",
+        "max_requests": 600,
+        "notes": "Standard Search bypasses the daily pro execution allocation."
+      },
+      "last_updated": "2026-06-12T05:02:29.685Z",
+      "source": "manual",
+      "eta": "4h 32m"
+    },
+    "ollama": {
+      "label": "Ollama",
+      "status": "ACTIVE",
+      "cooldown_until": null,
+      "limits_ref": {
+        "messages": null,
+        "window_hours": null,
+        "recovery_note": "local — limited by hardware",
+        "limit_type": "local"
+      },
+      "last_updated": "2026-06-12T05:27:05.176Z",
+      "source": "scan",
+      "eta": null
+    },
+    "llamacpp": {
+      "label": "llama.cpp",
+      "status": "ACTIVE",
+      "cooldown_until": null,
+      "limits_ref": {
+        "messages": null,
+        "window_hours": null,
+        "recovery_note": "local — limited by hardware",
+        "limit_type": "local"
+      },
+      "last_updated": "2026-06-12T05:27:05.176Z",
+      "source": "scan",
+      "eta": null
+    }
+  },
+  "current_session_provider": "claude",
+  "workspace_roots": {
+    "app": "D:\\projects\\Hoot\\ui",
+    "core": "D:\\projects\\Hoot",
+    "data": "D:\\projects\\Hoot\\data"
+  },
+  "active_root_id": "core",
+  "matrix_line": "CLAUDE: ACTIVE · CHATGPT: COOLDOWN UNTIL 06:02 · GEMINI: COOLDOWN UNTIL 06:02 · KIMI: COOLDOWN UNTIL 04:02 · DEEPSEEK: COOLDOWN UNTIL 06:02 · PERPLEXITY: COOLDOWN UNTIL 06:02 · OLLAMA: ACTIVE · LLAMACPP: ACTIVE"
+}

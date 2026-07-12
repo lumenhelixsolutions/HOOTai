@@ -1,19 +1,21 @@
 # HOOT — Local AI Command Center
 
-**Portfolio path:** `D:/projects/Hoot/` — canonical folder for all HOOT work (rebrand from AgentDock).
+**Portfolio path:** `D:/projects/HootAi/` — current working repo for all HOOT work (rebrand from AgentDock).
+
+**Current version:** `2.3.1` (`VERSION` + `package.json` + `ui/package.json`). Canonical launcher: `pwsh D:\projects\scripts\start-hoot.ps1`.
 
 HOOT is a local-only AI agent command center (engine package: `agentdock`). It scans your machine, plans agent stacks, monitors terminals, launches approved profiles, and learns from memory. It binds to `127.0.0.1` only, uses zero runtime npm dependencies, and launches only commands embedded in approved Markdown profile files.
 
 ## Quick Start
 
-**Canonical path only:** `D:\projects\Hoot` — never start from `D:\projects\agentdock` (legacy mirror).
+**Path note:** repo files live under `D:\projects\HootAi`. `canonical-root.js` now treats both `HootAi` and `Hoot` as canonical aliases, while `D:\projects\agentdock` remains the legacy mirror only.
 
 ```powershell
 pwsh D:\projects\scripts\start-hoot.ps1
 ```
 
 ```bash
-cd D:/projects/Hoot
+cd D:/projects/HootAi
 node server.js
 ```
 
@@ -104,6 +106,7 @@ No linter is configured by design (zero dependencies). Follow the existing style
 |-------------|----------|
 | RTK token efficiency | `state/user-settings.json`, scanner `token_efficiency` |
 | MCP git catalog | `state/mcp-catalog.json`, `GET /api/mcp` |
+| LM Studio settings | Settings UI, `GET/POST /api/settings`, `localInference.lmstudio`, `backend: lmstudio` / `lm-studio` local providers |
 | llama.cpp settings | Settings UI, `GET/POST /api/settings`, `backend: llamacpp` profiles |
 | Docs | `D:\projects\docs/AI_OS_INTEGRATIONS.md` |
 
@@ -130,6 +133,14 @@ HOOT is **not** [AgentDock/AgentDock](https://github.com/AgentDock/AgentDock) on
 
 ## UI session refresh
 
+The React shell now uses a shared route manifest (`ui/src/lib/app-shell.ts`) so routes, nav grouping, and visibility stay aligned. The main operator split is:
+- **Basic mode** — strict 5-step operator loop: Home → Readiness → Build → Launch → Session
+- **Advanced mode** — full command center grouped into **Operate**, **Intelligence**, and **Configure** surfaces
+
+Launch authority belongs in `ui/src/pages/LaunchCenterPage.tsx`. The dashboard should stay focused on readiness, active mission context, HOOT recommendations, and handoff/setup shortcuts; profile browsing and deep catalog inspection live in `ProfilesPage` under Advanced mode.
+
+HOOT can switch modes and trigger prefab actions through typed UI control targets in `ui/src/lib/hoot-control.ts`.
+
 While the HOOT tab is open, intelligence views auto-reload **on mount** and **every 30 minutes** (`SESSION_POLL_MS` in `ui/src/lib/session-poll.ts`). `SessionPollProvider` in `AppLayout` broadcasts `hoot:session-refresh`; pages use `useSessionPoll()`.
 
 | Cadence | Surfaces |
@@ -138,6 +149,20 @@ While the HOOT tab is open, intelligence views auto-reload **on mount** and **ev
 | 30 s | Command Deck cooldown registry (live countdowns) |
 
 Portfolio/Pipeline passes `?refresh=1` on session ticks to re-read `MILESTONES.md` and `.agentdock/project-brain/`.
+
+Dashboard hydration should prefer `GET /api/bootstrap` and cached scan data before falling back to multi-request fanout. Builder-first workflows should prefer prefab selection (local / cloud / hybrid) before exposing the full composer. Shell-only overlays (coach mascot, command palette, onboarding wizard, guide bar, cooldown strip) should stay lazily loaded so they do not inflate first paint. Vite modulepreload should avoid eagerly preloading heavyweight optional chunks like `coach-*` and `recharts-*`.
+
+Session/context accuracy rules:
+- The coach session id is owned by `CoachContext` and persisted in tab-scoped `sessionStorage` (`hoot_coach_session_id`). Any coach surface (`HeadCoach`, mascot thread, context refresh) must reuse that shared id rather than minting its own transient session key.
+- Route/page context refreshes should call `/api/coach/context` with the shared coach session id so cached MCP/page summaries stay attached to one conversational session across route changes.
+- `pageContext` remains a slim operator snapshot for routine hints; only explicit repo/memory asks should escalate to full context mode.
+
+Token-ledger accuracy rules:
+- `token-ledger.js` must bucket timestamps with the configured `timezone` rather than raw UTC date slicing; imported Claude transactions and CSV rows should land on the operator's local workday.
+- `fast_recent` refreshes may reuse cached historical days, but they must preserve cached Codex session history when recomputing `work_breakdown` so totals/examples do not silently collapse to only recently touched files.
+- CSV ingestion should tolerate quoted fields/embedded commas. `tests/token-ledger.test.js` covers timezone bucketing and fast-refresh work-breakdown preservation; keep those checks green when touching ledger ingestion.
+
+Settings now treat LM Studio as a first-class local runtime alongside Ollama and llama.cpp: `localInference.preferredBackend` selects the default local engine, `localInference.lmstudio` stores host/port/protocol/basePath/defaultModel, and HOOT Brain Auto mode prioritizes Ollama → LM Studio → llama.cpp before cloud fallback. Scan/build/coach flows should surface LM Studio as part of the prefab local/cloud/hybrid decision, not bury it behind custom endpoint UX.
 
 ## Chatbot / Coach UI
 

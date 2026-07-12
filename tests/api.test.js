@@ -403,4 +403,14 @@ describe('api', () => {
     assert.ok(json.cooldown?.providers);
     assert.ok(Array.isArray(json.recommended));
   });
+
+  it('GET /docs/manifest.json serves bundled docs index as JSON', async () => {
+    const res = await get('/docs/manifest.json');
+    assert.strictEqual(res.status, 200);
+    const json = JSON.parse(res.body);
+    assert.ok(Array.isArray(json.docs));
+    assert.ok(json.docs.length > 0);
+    assert.ok(json.docs.some((d) => d.path === '/docs/README.md'));
+    assert.notStrictEqual(json.type, 'Buffer');
+  });
 });

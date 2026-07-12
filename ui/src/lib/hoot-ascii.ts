@@ -591,6 +591,21 @@ export function renderCognitiveCompactLines(
   return next;
 }
 
+/** Live cascade glyphs from the cognitive runtime — shared by alternate face styles. */
+export function peekCognitiveFace(
+  ctx: HootMoodContext,
+  frame: number,
+): { thirdEye: string; eyeL: string; eyeR: string; beak: string; caption: string } {
+  const { lines } = defaultCognitiveRuntime.tick(ctx, frame);
+  return {
+    thirdEye: lines[0]![THIRD_EYE_COL] ?? "·",
+    eyeL: lines[1]![EYE_L_COL] ?? "·",
+    eyeR: lines[1]![EYE_R_COL] ?? "·",
+    beak: lines[2]![BEAK_GLYPH_COL] ?? "▽",
+    caption: lines[3]?.trim() ?? "",
+  };
+}
+
 export function minimalMoodContext(mood: HootMood, pathname = "/"): HootMoodContext {
   return {
     pathname,
@@ -984,7 +999,7 @@ export function renderGrandLines(ctx: HootMoodContext, frame: number, statusOver
   const domain = emotionToDomain(emotion, ctx);
   const anim = resolveAlternatingAnim(frame);
   const tilt = tiltForDomain(domain, anim.generation);
-  const { spine, health } = tickGrandSpine(ctx, frame);
+  const { spine, health } = ensureGrandSpineTick(ctx, frame);
 
   const flanks = dataFlanksFromContext(ctx, domain);
   const inCh = flanks ? flanks[frame % flanks.length]! : "_";
@@ -1181,6 +1196,7 @@ export function resetGrandSpine(): void {
     healthBand: 4,
     feedIndex: 0,
   };
+  lastGrandShiftAt = 0;
 }
 
 /** Manual injection point (UI actions can push glyphs through the owl). */
@@ -1188,14 +1204,7 @@ export function enqueueSpineGlyphs(glyphs: string[]): void {
   grandSpine.queue.push(...glyphs.map((g) => g.slice(0, 1)));
 }
 
-/**
- * Advance the spine one tick: handle trigger/health transitions, pick the
- * next glyph (event queue first, then live-data feed), shift the register.
- */
-export function tickGrandSpine(
-  ctx: HootMoodContext,
-  frame: number,
-): { spine: SpineRegister; domain: CognitiveDomain; health: number } {
+function syncGrandSpineEvents(ctx: HootMoodContext): { domain: CognitiveDomain; health: number } {
   const emotion = resolveHootEmotion(ctx);
   const domain = emotionToDomain(emotion, ctx);
   const health = healthFromContext(ctx);
@@ -1210,7 +1219,11 @@ export function tickGrandSpine(
   if (band < grandSpine.healthBand) grandSpine.queue.push("!");
   else if (band === 4 && grandSpine.healthBand < 4) grandSpine.queue.push("+");
   grandSpine.healthBand = band;
+  return { domain, health };
+}
 
+function shiftGrandSpineRegister(ctx: HootMoodContext, frame: number): void {
+  const domain = grandSpine.domain;
   let next: string | null = grandSpine.queue.shift() ?? null;
   if (next === null) {
     const flanks = dataFlanksFromContext(ctx, domain);
@@ -1222,5 +1235,36 @@ export function tickGrandSpine(
     }
   }
   grandSpine.spine = [next, ...grandSpine.spine.slice(0, SPINE_POINTS - 1)];
+}
+
+let lastGrandShiftAt = 0;
+
+/**
+ * Sync live events immediately; shift the register at most once per GRAND_TICK_MS
+ * so multiple HootLogo instances do not jitter the conveyor.
+ */
+export function ensureGrandSpineTick(
+  ctx: HootMoodContext,
+  frame: number,
+): { spine: SpineRegister; domain: CognitiveDomain; health: number } {
+  const { domain, health } = syncGrandSpineEvents(ctx);
+  const now = Date.now();
+  if (now - lastGrandShiftAt >= GRAND_TICK_MS) {
+    lastGrandShiftAt = now;
+    shiftGrandSpineRegister(ctx, frame);
+  }
+  return { spine: grandSpine.spine, domain, health };
+}
+
+/**
+ * Advance the spine one tick: handle trigger/health transitions, pick the
+ * next glyph (event queue first, then live-data feed), shift the register.
+ */
+export function tickGrandSpine(
+  ctx: HootMoodContext,
+  frame: number,
+): { spine: SpineRegister; domain: CognitiveDomain; health: number } {
+  const { domain, health } = syncGrandSpineEvents(ctx);
+  shiftGrandSpineRegister(ctx, frame);
   return { spine: grandSpine.spine, domain, health };
 }

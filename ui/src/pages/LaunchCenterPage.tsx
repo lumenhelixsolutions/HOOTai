@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Eye, FolderKanban, Layers3, PlayCircle, TerminalSquare } from "lucide-react";
 import { api } from "@/lib/api";
@@ -102,13 +102,16 @@ export default function LaunchCenterPage() {
     }
   };
 
+  const coachActionRef = useRef<(target: string) => void>(() => {});
+  coachActionRef.current = (target) => {
+    const topId = launchCandidates[0]?.id;
+    if (target === "launch-review-first" && topId) reviewProfile(topId);
+    if (target === "launch-staged-go" && preview?.id) launchProfile(preview.id);
+  };
+
   useEffect(() => {
-    return registerActionHandler((target) => {
-      const topId = launchCandidates[0]?.id;
-      if (target === "launch-review-first" && topId) reviewProfile(topId);
-      if (target === "launch-staged-go" && preview?.id) launchProfile(preview.id);
-    });
-  });
+    return registerActionHandler((target) => coachActionRef.current(target));
+  }, [registerActionHandler]);
 
   if (loading) {
     return (

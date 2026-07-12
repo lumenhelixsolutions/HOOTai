@@ -1,5 +1,5 @@
 /**
- * HOOT local brain resolver — Ollama / llama.cpp auto-selection for coach.
+ * HOOT local brain resolver — Ollama / LM Studio / llama.cpp auto-selection for coach.
  */
 
 const { spawn } = require('child_process');
@@ -61,6 +61,16 @@ function ollamaEndpoint(settings) {
   return `${base}/v1/chat/completions`;
 }
 
+function lmstudioEndpoint(settings, scan) {
+  const ls = settings?.localInference?.lmstudio || {};
+  const backend = (scan?.local_models?.backends || []).find((b) => b.id === 'lm-studio');
+  const protocol = ls.protocol || 'http';
+  const host = ls.host || backend?.server?.host || '127.0.0.1';
+  const port = ls.port || backend?.server?.port || 1234;
+  const basePath = `/${String(ls.basePath || '/v1').replace(/^\/+/, '').replace(/\/$/, '')}`;
+  return `${protocol}://${host}:${port}${basePath}/chat/completions`;
+}
+
 function llamacppEndpoint(settings, scan) {
   const lc = settings?.localInference?.llamacpp || {};
   const backend = (scan?.local_models?.backends || []).find((b) => b.id === 'llamacpp');
@@ -69,18 +79,45 @@ function llamacppEndpoint(settings, scan) {
   return `http://${host}:${port}/v1/chat/completions`;
 }
 
+function lmstudioReachable(settings, scan) {
+  const backend = (scan?.local_models?.backends || []).find((b) => b.id === 'lm-studio');
+  return Boolean(backend?.server?.reachable || settings?.localInference?.lmstudio?.enabled);
+}
+
+function bestLmStudioModel(settings, scan) {
+  const configured = String(settings?.localInference?.lmstudio?.defaultModel || '').trim();
+  if (configured) return configured;
+  const backend = (scan?.local_models?.backends || []).find((b) => b.id === 'lm-studio');
+  const models = Array.isArray(backend?.models) ? backend.models : [];
+  return models[0]?.name || null;
+}
+
 function resolveHootBrain({ scan, settings, providerOverride } = {}) {
   const s = settings || {};
   const brainCfg = s.hoot_brain || {};
   const mode = String(providerOverride || brainCfg.mode || 'auto').toLowerCase();
 
   const ollamaPresent = Boolean(scan?.tools?.ollama?.present);
+  const lmStudioBackend = (scan?.local_models?.backends || []).find((b) => b.id === 'lm-studio');
+  const lmStudioPresent = Boolean(lmStudioBackend?.present);
+  const lmStudioAvailable = lmstudioReachable(s, scan);
   const llamaBackend = (scan?.local_models?.backends || []).find((b) => b.id === 'llamacpp');
   const llamacppReachable = Boolean(llamaBackend?.server?.reachable || s.localInference?.llamacpp?.enabled);
 
   if (mode === 'cloud') {
     const cloud = brainCfg.cloud_provider || 'gemini';
     return { provider: cloud, model: null, endpoint: null, available: false, source: 'cloud-settings' };
+  }
+
+  if (mode === 'lmstudio' || mode === 'lm-studio' || (mode === 'auto' && !ollamaPresent && lmStudioPresent)) {
+    return {
+      provider: 'lmstudio',
+      model: bestLmStudioModel(s, scan) || 'local-model',
+      endpoint: lmstudioEndpoint(s, scan),
+      available: lmStudioAvailable,
+      source: lmStudioAvailable ? 'lm-studio' : 'lm-studio-config',
+      lmStudioPresent,
+    };
   }
 
   if (mode === 'ollama' || (mode === 'auto' && ollamaPresent)) {
@@ -137,6 +174,7 @@ module.exports = {
   startOllamaPull,
   getPullState,
   ollamaEndpoint,
+  lmstudioEndpoint,
   llamacppEndpoint,
   resolveHootBrain,
 };

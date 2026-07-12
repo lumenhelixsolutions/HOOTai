@@ -1,7 +1,11 @@
 # HOOTai
 
 <p align="center">
-  <img src="docs/assets/logo.svg" alt="HOOTai logo" width="160">
+  <img src="docs/assets/hero.svg" alt="HOOTai header" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/assets/logo.svg" alt="HOOTai logo" width="120">
 </p>
 
 <h3 align="center">Local AI command center for project-aware agent stacks</h3>
@@ -11,7 +15,7 @@
 <p align="center">
   <a href="https://lumenhelixlab.github.io/HOOTai/">Launch Page</a>
   <span> · </span>
-  <a href="https://github.com/LumenHelixLab/HOOTai">GitHub</a>
+  <a href="https://github.com/lumenhelixlab/HOOTai">GitHub</a>
   <span> · </span>
   <a href="https://lumenhelix.com">LumenHelix</a>
 </p>
@@ -31,7 +35,7 @@ HOOTai is the local AI command center for project-aware agent stacks. It scans y
 ### macOS / Linux
 
 ```bash
-git clone https://github.com/LumenHelixLab/HOOTai.git
+git clone https://github.com/lumenhelixlab/HOOTai.git
 cd HOOTai
 npm install
 npm test
@@ -41,7 +45,7 @@ node server.js
 ### Windows (PowerShell)
 
 ```powershell
-git clone https://github.com/LumenHelixLab/HOOTai.git
+git clone https://github.com/lumenhelixlab/HOOTai.git
 Set-Location HOOTai
 npm install
 npm test
@@ -51,7 +55,7 @@ node server.js
 ### Windows (Git Bash / WSL)
 
 ```bash
-git clone https://github.com/LumenHelixLab/HOOTai.git
+git clone https://github.com/lumenhelixlab/HOOTai.git
 cd HOOTai
 npm install
 npm test

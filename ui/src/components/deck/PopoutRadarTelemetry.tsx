@@ -3,6 +3,8 @@ import { Radio, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import { BRAND } from "@/lib/brand";
 import { formatEstTokens } from "@/lib/production-radar";
+import HoverTip from "@/components/HoverTip";
+import { getTooltip } from "@/lib/tooltips";
 
 type RadarPayload = Awaited<ReturnType<typeof api.getAgentRadar>>;
 
@@ -53,14 +55,15 @@ export default function PopoutRadarTelemetry() {
           <Radio size={11} className={running > 0 ? "text-emerald-400" : "opacity-40"} />
           Agent radar
         </div>
-        <button
-          type="button"
-          onClick={() => load(true)}
-          title="Refresh radar"
-          className="rounded-md border border-border px-1.5 py-0.5 opacity-50 transition hover:opacity-100"
-        >
-          <RefreshCw size={10} className={loading ? "animate-spin" : ""} />
-        </button>
+        <HoverTip id="deck.radar.refresh">
+          <button
+            type="button"
+            onClick={() => load(true)}
+            className="rounded-md border border-border px-1.5 py-0.5 opacity-50 transition hover:opacity-100"
+          >
+            <RefreshCw size={10} className={loading ? "animate-spin" : ""} />
+          </button>
+        </HoverTip>
       </div>
 
       {failed && !radar ? (
@@ -87,7 +90,7 @@ export default function PopoutRadarTelemetry() {
                 ) : null}
               </div>
               {primary?.last_user_query && (
-                <div className="mt-0.5 truncate opacity-45" title={primary.last_user_query}>
+                <div className="mt-0.5 truncate opacity-45" title={`${getTooltip("deck.radar.query").body} · ${primary.last_user_query}`}>
                   “{primary.last_user_query.slice(0, 72)}{primary.last_user_query.length > 72 ? "…" : ""}”
                 </div>
               )}
@@ -100,7 +103,7 @@ export default function PopoutRadarTelemetry() {
                 <span
                   key={a.id}
                   className="rounded border border-border px-1.5 py-0.5 font-mono text-[9px] opacity-60"
-                  title={`${a.name}: ${a.count} proc · dock ${a.dock} · ext ${a.external}`}
+                  title={`${getTooltip("deck.radar.agent").body} · ${a.name}: ${a.count} proc · dock ${a.dock} · ext ${a.external}`}
                 >
                   {a.name} {a.count > 1 ? `×${a.count}` : ""}
                 </span>

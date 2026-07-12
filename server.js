@@ -158,6 +158,7 @@ const DEFAULT_USER_SETTINGS = {
   localInference: {
     preferredBackend: 'ollama',
     ollama: { host: 'http://127.0.0.1:11434', contextLength: 8192, flashAttention: true, kvCacheType: 'q8_0', numParallel: 1, maxLoadedModels: 1 },
+    lmstudio: { enabled: false, host: '127.0.0.1', port: 1234, protocol: 'http', basePath: '/v1', defaultModel: '' },
     llamacpp: { enabled: false, binary: 'llama-server', modelPath: '', host: '127.0.0.1', port: 8081, contextSize: 8192, nGpuLayers: -1, threads: 8, extraArgs: '' },
   },
   tokenEfficiency: { rtkRecommended: true, rtkAgents: ['claude', 'codex', 'cursor', 'hermes'] },
@@ -300,7 +301,7 @@ function buildCoachChatContext({
 
 (function initLastScan() {
   const hydrated = hydrateLastScan(DIRS.logs);
-  if (hydrated?.scan) lastScan = hydrated.scan;
+  if (hydrated?.scan) lastScan = normalizeScanShape(hydrated.scan);
 })();
 
 harvestFromProcessEnv();
@@ -570,11 +571,11 @@ function readProjectRegistry(force = false) {
 }
 
 function getCachedScanResponse() {
-  if (lastScan) return attachCacheMeta(lastScan, { cached: true, source: 'memory' });
+  if (lastScan) return attachCacheMeta(normalizeScanShape(lastScan), { cached: true, source: 'memory' });
   const hydrated = hydrateLastScan(DIRS.logs);
   if (hydrated?.scan) {
-    lastScan = hydrated.scan;
-    return attachCacheMeta(hydrated.scan, { cached: true, source: hydrated.meta.source, file: hydrated.meta.file });
+    lastScan = normalizeScanShape(hydrated.scan);
+    return attachCacheMeta(lastScan, { cached: true, source: hydrated.meta.source, file: hydrated.meta.file });
   }
   return null;
 }
@@ -629,6 +630,7 @@ function loadUserSettings() {
       ...DEFAULT_USER_SETTINGS.localInference,
       ...(stored.localInference || {}),
       ollama: { ...DEFAULT_USER_SETTINGS.localInference.ollama, ...(stored.localInference?.ollama || {}) },
+      lmstudio: { ...DEFAULT_USER_SETTINGS.localInference.lmstudio, ...(stored.localInference?.lmstudio || {}) },
       llamacpp: { ...DEFAULT_USER_SETTINGS.localInference.llamacpp, ...(stored.localInference?.llamacpp || {}) },
     },
     tokenEfficiency: { ...DEFAULT_USER_SETTINGS.tokenEfficiency, ...(stored.tokenEfficiency || {}) },
@@ -651,6 +653,7 @@ function saveUserSettings(partial) {
       ...current.localInference,
       ...(partial.localInference || {}),
       ollama: { ...current.localInference.ollama, ...(partial.localInference?.ollama || {}) },
+      lmstudio: { ...current.localInference.lmstudio, ...(partial.localInference?.lmstudio || {}) },
       llamacpp: { ...current.localInference.llamacpp, ...(partial.localInference?.llamacpp || {}) },
     },
     tokenEfficiency: { ...current.tokenEfficiency, ...(partial.tokenEfficiency || {}) },
@@ -784,6 +787,20 @@ function normalizeLoadedModels(scan) {
   if (Array.isArray(raw)) return raw;
   if (raw && typeof raw === 'object' && raw.name) return [raw];
   return parseOllamaPsRaw(scan?.ollama?.ps_raw);
+}
+function normalizeScanShape(scan) {
+  if (!scan || typeof scan !== 'object') return scan;
+  return {
+    ...scan,
+    coders: Array.isArray(scan.coders) ? scan.coders : [],
+    env_files: Array.isArray(scan.env_files) ? scan.env_files : [],
+    ollama: { ...scan.ollama, loaded_models: normalizeLoadedModels(scan) },
+    local_models: {
+      ...scan.local_models,
+      backends: Array.isArray(scan.local_models?.backends) ? scan.local_models.backends : [],
+      discovered_ggufs: Array.isArray(scan.local_models?.discovered_ggufs) ? scan.local_models.discovered_ggufs : [],
+    },
+  };
 }
 function getLoadedModelContext(scan, modelName) {
   if (!scan || !modelName) return null;
@@ -1042,7 +1059,7 @@ function runScanner(repoPath) {
     child.on('close', code => {
       if (code !== 0) return reject(new Error(err || `scanner exited ${code}`));
       try {
-        const parsed = JSON.parse(out);
+        const parsed = normalizeScanShape(JSON.parse(out));
         lastScan = parsed;
         const keyHarvest = harvestFromScan(parsed);
         parsed.key_vault = { imported: keyHarvest.count, keys: keyHarvest.keys };
@@ -1736,6 +1753,39 @@ function loadCompatibilityRules() {
   return readJSON(FILES.rules, { modelCapabilities: {}, ceCompatibility: {}, taskTiers: {} });
 }
 
+function staticMime(ext) {
+  if (ext === '.html') return 'text/html; charset=utf-8';
+  if (ext === '.css') return 'text/css';
+  if (ext === '.js') return 'application/javascript';
+  if (ext === '.json') return 'application/json';
+  if (ext === '.svg') return 'image/svg+xml';
+  if (ext === '.png') return 'image/png';
+  if (ext === '.woff2') return 'font/woff2';
+  if (ext === '.woff') return 'font/woff';
+  return 'text/plain; charset=utf-8';
+}
+
+function isHashedAssetPath(pathname) {
+  return /^\/assets\//.test(pathname)
+    || /^\/docs\//.test(pathname)
+    || /\.(js|css|mjs|map|woff2?|png|jpe?g|gif|webp|svg|ico)$/i.test(pathname);
+}
+
+function sendStaticFile(res, filePath, pathname) {
+  const ext = path.extname(filePath).toLowerCase();
+  const type = staticMime(ext);
+  const cacheControl = pathname === '/index.html' || pathname === '/'
+    ? 'no-cache, must-revalidate'
+    : (/\/assets\/.*-[A-Za-z0-9_-]+\.[a-z0-9]+$/i.test(pathname) ? 'public, max-age=31536000, immutable' : 'no-cache');
+  res.writeHead(200, {
+    'Content-Type': type,
+    'X-Content-Type-Options': 'nosniff',
+    'Cache-Control': cacheControl,
+    ...corsHeaders(),
+  });
+  res.end(fs.readFileSync(filePath));
+}
+
 function serveStatic(req, res) {
   const url = new URL(req.url, `http://${HOST}:${PORT}`);
   let pathname = decodeURIComponent(url.pathname);
@@ -1744,23 +1794,24 @@ function serveStatic(req, res) {
   // Prefer React build from ui/dist/ if it exists
   const distFile = path.join(UI_DIST, pathname.slice(1));
   if (fs.existsSync(distFile) && !fs.statSync(distFile).isDirectory()) {
-    const ext = path.extname(distFile).toLowerCase();
-    const type = ext === '.html' ? 'text/html; charset=utf-8' : ext === '.css' ? 'text/css' : ext === '.js' ? 'application/javascript' : ext === '.json' ? 'application/json' : 'text/plain; charset=utf-8';
-    return send(res, 200, fs.readFileSync(distFile), type);
+    return sendStaticFile(res, distFile, pathname);
   }
 
   // Fallback to root directory (for old index.html, profiles, etc.)
   const full = safeJoin(ROOT, pathname.slice(1));
   if (fs.existsSync(full) && !fs.statSync(full).isDirectory()) {
-    const ext = path.extname(full).toLowerCase();
-    const type = ext === '.html' ? 'text/html; charset=utf-8' : ext === '.css' ? 'text/css' : ext === '.js' ? 'application/javascript' : ext === '.json' ? 'application/json' : 'text/plain; charset=utf-8';
-    return send(res, 200, fs.readFileSync(full), type);
+    return sendStaticFile(res, full, pathname);
+  }
+
+  // Missing hashed bundles must 404 — never SPA-fallback HTML (breaks dynamic import())
+  if (isHashedAssetPath(pathname)) {
+    return send(res, 404, { error: 'Asset not found', path: pathname });
   }
 
   // SPA fallback: serve ui/dist/index.html for unknown routes (so React Router works)
   const spaIndex = path.join(UI_DIST, 'index.html');
   if (fs.existsSync(spaIndex)) {
-    return send(res, 200, fs.readFileSync(spaIndex), 'text/html; charset=utf-8');
+    return sendStaticFile(res, spaIndex, '/index.html');
   }
 
   return send(res, 404, { error: 'Not found' });
@@ -2664,6 +2715,7 @@ async function route(req, res) {
       const scanHints = {
         rtk: lastScan?.tools?.rtk || null,
         wsl: lastScan?.tools?.wsl || null,
+        lmstudio: (lastScan?.local_models?.backends || []).find(b => b.id === 'lm-studio') || null,
         llamacpp: (lastScan?.local_models?.backends || []).find(b => b.id === 'llamacpp') || null,
       };
       return send(res, 200, { settings, scanHints, keys: listMaskedKeys() });
@@ -2697,7 +2749,9 @@ async function route(req, res) {
       const body = await readBody(req);
       const models = Array.isArray(body.models) ? body.models : [];
       try {
-        const data = await runBenchScript(models, BENCH_CSV);
+        const settings = loadUserSettings();
+        const ollamaHost = settings?.localInference?.ollama?.host;
+        const data = await runBenchScript(models, BENCH_CSV, { ollamaHost });
         return send(res, 200, { ok: true, ...data });
       } catch (err) {
         return send(res, 500, { ok: false, error: err.message });

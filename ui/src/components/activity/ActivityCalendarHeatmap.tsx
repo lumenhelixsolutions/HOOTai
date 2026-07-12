@@ -36,7 +36,7 @@ export default function ActivityCalendarHeatmap({
                 <button
                   key={cell.date}
                   type="button"
-                  title={`${cell.date}: ${cell.total_minutes}m · ${cell.events} events`}
+                  title={`Activity day — ${cell.date}: ${cell.total_minutes} minutes across ${cell.events} events. Click to filter the session timeline.`}
                   onClick={() => cell.in_range && onSelect(cell.date)}
                   style={{
                     aspectRatio: "1",

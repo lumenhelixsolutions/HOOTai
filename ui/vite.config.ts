@@ -1,9 +1,22 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import { bundleDocs } from './scripts/bundle-docs.mjs'
+
+function docsBundlePlugin(): Plugin {
+  return {
+    name: 'hoot-docs-bundle',
+    buildStart() {
+      bundleDocs()
+    },
+    configureServer() {
+      bundleDocs()
+    },
+  }
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [docsBundlePlugin(), react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -22,6 +35,9 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     chunkSizeWarningLimit: 600,
+    modulePreload: {
+      resolveDependencies: (_filename, deps) => deps.filter((dep) => !dep.includes('coach-') && !dep.includes('recharts-')),
+    },
     rollupOptions: {
       output: {
         manualChunks(id) {

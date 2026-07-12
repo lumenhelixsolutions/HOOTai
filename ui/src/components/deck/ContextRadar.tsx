@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { FolderTree, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import { Panel, WidgetError } from "@/components/dashboard/primitives";
+import HoverTip, { TipIcon } from "@/components/HoverTip";
+import { getTooltip } from "@/lib/tooltips";
 
 type RadarFile = {
   path: string;
@@ -72,7 +74,7 @@ export default function ContextRadar() {
   }, [load, hours]);
 
   return (
-    <Panel title="Context radar" subtitle={`Workspace interceptor · files touched in last ${hours}h`} icon={FolderTree}>
+    <Panel title="Context radar" subtitle={`Workspace interceptor · files touched in last ${hours}h`} icon={FolderTree} action={<TipIcon id="deck.context.window" />}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           {WINDOWS.map((w) => (
@@ -80,6 +82,7 @@ export default function ContextRadar() {
               key={w}
               type="button"
               onClick={() => setHours(w)}
+              title={`${getTooltip("deck.context.window").body} · ${w} hour window`}
               className={`rounded-lg border px-2.5 py-1 text-[11px] transition ${
                 hours === w
                   ? "hoot-gold-chip font-semibold"
@@ -89,9 +92,11 @@ export default function ContextRadar() {
               {w}h
             </button>
           ))}
-          <button type="button" onClick={() => load(hours)} title="Rescan" className="ml-1 rounded-lg border border-border px-2 py-1 opacity-60 hover:opacity-100">
+          <HoverTip id="deck.context.rescan">
+            <button type="button" onClick={() => load(hours)} className="ml-1 rounded-lg border border-border px-2 py-1 opacity-60 hover:opacity-100">
             <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
-          </button>
+            </button>
+          </HoverTip>
         </div>
         {data && (
           <div className="font-mono text-[11px] opacity-55">
@@ -134,7 +139,7 @@ export default function ContextRadar() {
 
                 <div className="grid gap-1">
                   {root.files.slice(0, MAX_ROWS).map((f) => (
-                    <div key={f.path} className="grid grid-cols-[1fr_auto] items-center gap-2" title={`${f.path} · ${f.size_bytes} bytes`}>
+                    <div key={f.path} className="grid grid-cols-[1fr_auto] items-center gap-2" title={`${getTooltip("deck.context.file").body} · ${f.path} · ${f.size_bytes} bytes · ~${f.est_tokens} tokens`}>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span className="truncate font-mono text-[11px] text-foreground/85">{f.path}</span>

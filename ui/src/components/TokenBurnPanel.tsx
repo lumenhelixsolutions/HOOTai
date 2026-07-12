@@ -120,7 +120,7 @@ export default function TokenBurnPanel({
                     background: "linear-gradient(180deg, #fb923c, #c8872e)",
                     opacity: 0.9,
                   }}
-                  title={`${day.date}: ${day.saved} saved`}
+                  title={`RTK token savings — ${day.date}: ${day.saved} tokens saved via shell-output reduction on this day.`}
                 />
                 <span style={{ fontSize: 8, opacity: 0.4 }}>{day.date ? day.date.slice(5) : ""}</span>
               </div>

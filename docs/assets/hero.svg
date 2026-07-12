@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" preserveAspectRatio="xMidYMid slice" role="img" aria-hidden="true">
+  <rect width="1200" height="400" fill="#0B1021"/>
+  <defs>
+    <radialGradient id="hootGlow" cx="0.7" cy="0.5" r="0.6">
+      <stop offset="0%" stop-color="#E8C547" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#E8C547" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="850" cy="200" r="220" fill="url(#hootGlow)"/>
+  <g transform="translate(740, 80) scale(1.2)" stroke="#E8C547" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M24 48 L44 40 L64 56 L84 40 L104 48 L104 84 L84 92 L64 84 L44 92 L24 84 Z"/>
+    <path d="M44 60 C44 60 44 76 52 76 C60 76 60 60 60 60"/>
+    <path d="M68 60 C68 60 68 76 76 76 C84 76 84 60 84 60"/>
+    <circle cx="52" cy="66" r="8" fill="#E8C547" stroke="none"/>
+    <circle cx="76" cy="66" r="8" fill="#E8C547" stroke="none"/>
+    <circle cx="52" cy="66" r="4" fill="#10B981" stroke="none"/>
+    <circle cx="76" cy="66" r="4" fill="#10B981" stroke="none"/>
+  </g>
+  <text x="80" y="170" font-family="Space Grotesk, Inter, sans-serif" font-size="72" font-weight="700" fill="#F8FAFC">HOOTai</text>
+  <text x="84" y="230" font-family="Inter, sans-serif" font-size="28" fill="#94A3B8">Local AI command center.</text>
+</svg>

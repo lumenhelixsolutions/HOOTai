@@ -188,6 +188,114 @@
       "endedAt": "2026-06-07T14:19:08.684Z",
       "exitCode": 1,
       "pid": 79756
+    },
+    {
+      "id": "s-2026-06-12T00-34-35-459Z-c74173",
+      "profileId": "codex-patch-test",
+      "profileName": "Codex Patch/Test",
+      "startedAt": "2026-06-12T00:34:35.599Z",
+      "endedAt": "2026-06-12T00:34:37.543Z",
+      "exitCode": 0,
+      "pid": 15548
+    },
+    {
+      "id": "s-2026-06-12T05-30-20-306Z-752397",
+      "profileId": "local-safe-audit",
+      "profileName": "Local Safe Audit",
+      "startedAt": "2026-06-12T05:30:20.338Z",
+      "endedAt": "2026-06-12T05:30:24.136Z",
+      "exitCode": 1,
+      "pid": 28228
+    },
+    {
+      "id": "s-2026-06-12T05-30-19-975Z-8ade80",
+      "profileId": "local-safe-audit",
+      "profileName": "Local Safe Audit",
+      "startedAt": "2026-06-12T05:30:20.007Z",
+      "endedAt": "2026-06-12T05:30:24.388Z",
+      "exitCode": 1,
+      "pid": 23836
+    },
+    {
+      "id": "s-2026-06-12T05-30-38-458Z-89c5d7",
+      "profileId": "local-safe-audit",
+      "profileName": "Local Safe Audit",
+      "startedAt": "2026-06-12T05:30:38.487Z",
+      "endedAt": "2026-06-12T05:30:42.308Z",
+      "exitCode": 1,
+      "pid": 25108
+    },
+    {
+      "id": "s-2026-06-12T05-30-38-061Z-0db66c",
+      "profileId": "local-safe-audit",
+      "profileName": "Local Safe Audit",
+      "startedAt": "2026-06-12T05:30:38.090Z",
+      "endedAt": "2026-06-12T05:30:42.537Z",
+      "exitCode": 1,
+      "pid": 22536
+    },
+    {
+      "id": "s-2026-06-12T05-31-15-345Z-ab1017",
+      "profileId": "local-safe-audit",
+      "profileName": "Local Safe Audit",
+      "startedAt": "2026-06-12T05:31:15.375Z",
+      "endedAt": "2026-06-12T05:31:19.376Z",
+      "exitCode": 1,
+      "pid": 26824
+    },
+    {
+      "id": "s-2026-06-12T05-31-14-932Z-cef56c",
+      "profileId": "local-safe-audit",
+      "profileName": "Local Safe Audit",
+      "startedAt": "2026-06-12T05:31:14.956Z",
+      "endedAt": "2026-06-12T05:31:19.593Z",
+      "exitCode": 1,
+      "pid": 12396
+    },
+    {
+      "id": "s-2026-06-12T05-33-33-673Z-8ea892",
+      "profileId": "local-safe-audit",
+      "profileName": "Local Safe Audit",
+      "startedAt": "2026-06-12T05:33:33.707Z",
+      "endedAt": "2026-06-12T05:33:34.804Z",
+      "exitCode": 1,
+      "pid": 21984
+    },
+    {
+      "id": "s-2026-06-15T04-32-43-117Z-c39b9e",
+      "profileId": "local-safe-audit",
+      "profileName": "Local Safe Audit",
+      "startedAt": "2026-06-15T04:32:43.178Z",
+      "endedAt": "2026-06-15T04:32:43.661Z",
+      "exitCode": 1,
+      "pid": 13860
+    },
+    {
+      "id": "s-2026-06-18T06-33-26-018Z-f0c9b9",
+      "profileId": "cloud-architecture-codex",
+      "profileName": "Cloud Architecture (codex)",
+      "startedAt": "2026-06-18T06:33:26.285Z",
+      "endedAt": "2026-06-18T06:33:27.321Z",
+      "exitCode": 0,
+      "pid": 39136
+    },
+    {
+      "id": "s-2026-07-04T09-05-26-381Z-9b54c1",
+      "profileId": "local-patch-test",
+      "profileName": "Local Patch / Test",
+      "startedAt": "2026-07-04T09:05:26.425Z",
+      "endedAt": "2026-07-04T09:05:31.967Z",
+      "exitCode": 1,
+      "pid": 82596
+    },
+    {
+      "id": "s-2026-07-04T09-22-08-695Z-604e2a",
+      "profileId": "local-patch-test",
+      "profileName": "Local Patch / Test",
+      "startedAt": "2026-07-04T09:22:08.741Z",
+      "endedAt": "2026-07-04T09:22:09.182Z",
+      "exitCode": 1,
+      "pid": 84952
     }
   ],
   "outcomes": [
@@ -226,6 +334,33 @@
       "outcome": "partial",
       "notes": "",
       "timestamp": "2026-06-07T14:21:33.276Z"
+    },
+    {
+      "sessionId": "s-2026-07-04T09-22-08-695Z-604e2a",
+      "profileId": "local-patch-test",
+      "profileName": "Local Patch / Test",
+      "project": "D:\\projects\\racegps",
+      "outcome": "success",
+      "notes": "",
+      "timestamp": "2026-07-04T09:22:26.012Z"
+    },
+    {
+      "sessionId": "s-2026-07-04T09-22-08-695Z-604e2a",
+      "profileId": "local-patch-test",
+      "profileName": "Local Patch / Test",
+      "project": "D:\\projects\\racegps",
+      "outcome": "partial",
+      "notes": "",
+      "timestamp": "2026-07-04T09:22:30.984Z"
+    },
+    {
+      "sessionId": "s-2026-07-04T09-22-08-695Z-604e2a",
+      "profileId": "local-patch-test",
+      "profileName": "Local Patch / Test",
+      "project": "D:\\projects\\racegps",
+      "outcome": "failure",
+      "notes": "",
+      "timestamp": "2026-07-04T09:22:32.680Z"
     }
   ]
 }

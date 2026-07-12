@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
 import { useCoach } from "@/context/CoachContext";
 import { hootSignal } from "@/lib/hoot-signals";
@@ -132,13 +132,20 @@ export default function ScanPage() {
     }
   };
 
+  const runRef = useRef(run);
+  const refreshRadarRef = useRef(refreshRadar);
+  const refreshBurnRef = useRef(refreshBurn);
+  runRef.current = run;
+  refreshRadarRef.current = refreshRadar;
+  refreshBurnRef.current = refreshBurn;
+
   useEffect(() => {
     return registerActionHandler((target) => {
-      if (target === "scan-run") run();
-      if (target === "radar-refresh") refreshRadar(true);
-      if (target === "token-burn-refresh") refreshBurn(true);
+      if (target === "scan-run") void runRef.current();
+      if (target === "radar-refresh") void refreshRadarRef.current(true);
+      if (target === "token-burn-refresh") void refreshBurnRef.current(true);
     });
-  });
+  }, [registerActionHandler]);
 
   const hw = (scan?.hardware || {}) as any;
   const tools = (scan?.tools || {}) as any;

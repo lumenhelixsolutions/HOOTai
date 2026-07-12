@@ -8,8 +8,6 @@ import {
   moodColor,
   moodFrameInterval,
   renderBrandLines,
-  renderCompactLines,
-  renderGrandLines,
   BEAK_GLYPH_COL,
   BROW_L_COL,
   BROW_R_COL,
@@ -18,16 +16,47 @@ import {
   GRAND_CENTER_COL,
   GRAND_EYE_L_COL,
   GRAND_EYE_R_COL,
-  GRAND_FACE_ROWS,
-  GRAND_TICK_MS,
-  GRAND_WIDTH,
-  HOOT_FACE_ROWS,
   THIRD_EYE_COL,
-  WIDTH,
   type HootMood,
   type HootMoodContext,
   type PupilOffset,
 } from "./hoot-ascii";
+import {
+  ARCADE_BEAK_COL,
+  ARCADE_EYE_L_COL,
+  ARCADE_EYE_R_COL,
+  HOOT_FACE_STYLE_META,
+  NEON_BEAK_COL,
+  NEON_EYE_L_COL,
+  NEON_EYE_R_COL,
+  NEON_THIRD_COL,
+  PRISM_BEAK_COL,
+  PRISM_EYE_L_COL,
+  PRISM_EYE_R_COL,
+  PRISM_THIRD_COL,
+  SENTINEL_BEAK_COL,
+  SENTINEL_EYE_L_COL,
+  SENTINEL_EYE_R_COL,
+  TUFTED_BEAK_COL,
+  TUFTED_EYE_L_COL,
+  TUFTED_EYE_R_COL,
+  TUFTED_THIRD_COL,
+  ROUND_BEAK_COL,
+  ROUND_EYE_L_COL,
+  ROUND_EYE_R_COL,
+  BARN_BEAK_COL,
+  BARN_EYE_L_COL,
+  BARN_EYE_R_COL,
+  DUSK_BEAK_COL,
+  DUSK_EYE_L_COL,
+  DUSK_EYE_R_COL,
+  faceContext,
+  nextFaceStyle,
+  persistHootFaceStyle,
+  readStoredHootFaceStyle,
+  renderFaceLines,
+  type HootFaceStyle,
+} from "./hoot-face-styles";
 
 const LINE_COLOR = "#E8D5A3";
 const DIM_COLOR = "rgba(232,213,163,0.55)";
@@ -43,10 +72,106 @@ export type HootLogoProps = {
   onClick?: () => void;
   className?: string;
   trackMouse?: boolean;
-  variant?: "compact" | "grand";
+  /** @deprecated Use faceStyle */
+  variant?: HootFaceStyle;
+  faceStyle?: HootFaceStyle;
 };
 
 const ZERO_OFFSET: PupilOffset = { lx: 0, ly: 0, rx: 0, ry: 0 };
+
+type GlowLayout = {
+  eyeRow: number;
+  eyeCols: number[];
+  beakRow: number;
+  beakCol: number;
+  cascadeRow?: number;
+  cascadeCols?: number[];
+  spineRows?: number[];
+  spineCol?: number;
+};
+
+const GLOW_LAYOUT: Record<HootFaceStyle, GlowLayout> = {
+  compact: {
+    eyeRow: 1,
+    eyeCols: [EYE_L_COL, EYE_R_COL],
+    beakRow: 2,
+    beakCol: BEAK_GLYPH_COL,
+    cascadeRow: 0,
+    cascadeCols: [BROW_L_COL, THIRD_EYE_COL, BROW_R_COL],
+  },
+  tufted: {
+    eyeRow: 1,
+    eyeCols: [TUFTED_EYE_L_COL, TUFTED_EYE_R_COL],
+    beakRow: 2,
+    beakCol: TUFTED_BEAK_COL,
+    cascadeRow: 0,
+    cascadeCols: [TUFTED_THIRD_COL, 2, 8],
+  },
+  round: {
+    eyeRow: 1,
+    eyeCols: [ROUND_EYE_L_COL, ROUND_EYE_R_COL],
+    beakRow: 2,
+    beakCol: ROUND_BEAK_COL,
+    cascadeRow: 0,
+    cascadeCols: [4, 5, 6],
+  },
+  barn: {
+    eyeRow: 1,
+    eyeCols: [BARN_EYE_L_COL, BARN_EYE_R_COL],
+    beakRow: 2,
+    beakCol: BARN_BEAK_COL,
+    cascadeRow: 0,
+    cascadeCols: [2, 3, 4, 5, 6, 7, 8],
+  },
+  dusk: {
+    eyeRow: 1,
+    eyeCols: [DUSK_EYE_L_COL, DUSK_EYE_R_COL],
+    beakRow: 2,
+    beakCol: DUSK_BEAK_COL,
+    cascadeRow: 0,
+    cascadeCols: [4, 5, 6],
+  },
+  grand: {
+    eyeRow: 2,
+    eyeCols: [GRAND_EYE_L_COL, GRAND_EYE_R_COL],
+    beakRow: 3,
+    beakCol: GRAND_CENTER_COL,
+    spineRows: [1, 2, 6, 7],
+    spineCol: GRAND_CENTER_COL,
+  },
+  neon: {
+    eyeRow: 2,
+    eyeCols: [NEON_EYE_L_COL, NEON_EYE_R_COL],
+    beakRow: 3,
+    beakCol: NEON_BEAK_COL,
+    cascadeRow: 0,
+    cascadeCols: [NEON_THIRD_COL],
+  },
+  arcade: {
+    eyeRow: 1,
+    eyeCols: [ARCADE_EYE_L_COL, ARCADE_EYE_R_COL],
+    beakRow: 2,
+    beakCol: ARCADE_BEAK_COL,
+    cascadeRow: 0,
+    cascadeCols: [3, 4, 5, 6, 7],
+  },
+  sentinel: {
+    eyeRow: 2,
+    eyeCols: [SENTINEL_EYE_L_COL, SENTINEL_EYE_R_COL],
+    beakRow: 3,
+    beakCol: SENTINEL_BEAK_COL,
+    cascadeRow: 0,
+    cascadeCols: [5, 6, 7, 8, 9],
+  },
+  prism: {
+    eyeRow: 1,
+    eyeCols: [PRISM_EYE_L_COL, PRISM_EYE_R_COL],
+    beakRow: 2,
+    beakCol: PRISM_BEAK_COL,
+    cascadeRow: 0,
+    cascadeCols: [PRISM_THIRD_COL, 4, 6],
+  },
+};
 
 function colorizeLine(
   line: string,
@@ -55,16 +180,17 @@ function colorizeLine(
   row: number,
   isWordmarkLine: boolean,
   fixedCells: boolean,
-  isGrand: boolean,
+  faceStyle: HootFaceStyle,
 ): ReactNode[] {
   const glow = eyeGlowColor(mood);
   const pulse = 0.75 + Math.sin(frame * 0.4) * 0.25;
+  const layout = GLOW_LAYOUT[faceStyle];
   let inEyes = false;
 
   return line.split("").map((ch, i) => {
-    if (ch === "(") inEyes = true;
+    if (ch === "(" || ch === "[") inEyes = true;
     const isEye = inEyes && isEyeGlowChar(ch);
-    if (ch === ")") inEyes = false;
+    if (ch === ")" || ch === "]") inEyes = false;
 
     let color = LINE_COLOR;
     let shadow: string | undefined;
@@ -74,12 +200,44 @@ function colorizeLine(
       color = glow;
       shadow = `0 0 ${6 + pulse * 6}px ${glow}, 0 0 2px #FFF176`;
       weight = 600;
-    } else if (ch === "@" || ch === "?" || ch === ">" || ch === "~" || ch === "=" || ch === "◎" || ch === "◆" || ch === "★") {
+    } else if (
+      ch === "@" ||
+      ch === "?" ||
+      ch === ">" ||
+      ch === "~" ||
+      ch === "=" ||
+      ch === "◎" ||
+      ch === "◆" ||
+      ch === "◇" ||
+      ch === "★"
+    ) {
       const phaseHue =
-        ch === "@" ? "#FFF176" : ch === "?" ? "#c4b5fd" : ch === ">" ? "#4ade80" : ch === "~" ? "#93c5fd" : ch === "◆" ? "#4ade80" : ch === "★" ? "#fcd34d" : "#f59e0b";
+        ch === "@"
+          ? "#FFF176"
+          : ch === "?"
+            ? "#c4b5fd"
+            : ch === ">"
+              ? "#4ade80"
+              : ch === "~"
+                ? "#93c5fd"
+                : ch === "◆" || ch === "◇"
+                  ? "#c084fc"
+                  : ch === "★"
+                    ? "#fcd34d"
+                    : "#f59e0b";
       color = phaseHue;
       shadow = `0 0 ${6 + pulse * 6}px ${phaseHue}, 0 0 2px ${phaseHue}`;
       weight = 700;
+    } else if (ch === "█" || ch === "▓" || ch === "▒") {
+      color = "#ffb042";
+      shadow = `0 0 ${4 + pulse * 4}px rgba(255,176,66,0.55)`;
+      weight = 700;
+    } else if (ch === "■" || ch === "□") {
+      color = ch === "■" ? "#4ade80" : DIM_COLOR;
+      weight = 600;
+    } else if (faceStyle === "neon" && (ch === "+" || ch === "│" || ch === "|")) {
+      color = "#67e8f9";
+      shadow = `0 0 ${4 + pulse * 4}px rgba(103,232,249,0.45)`;
     } else if (isWordmarkLine) {
       color = LINE_COLOR;
       weight = 700;
@@ -88,22 +246,35 @@ function colorizeLine(
       weight = 600;
     } else if (ch === " ") {
       color = "transparent";
-    } else if (/[|_\\/\\^]/.test(ch)) {
+    } else if (/[|_\\/\\^─‾]/.test(ch)) {
       color = DIM_COLOR;
     }
 
-    const isEyeGlyph = isGrand
-      ? row === 2 && (i === GRAND_EYE_L_COL || i === GRAND_EYE_R_COL) && isEyeGlowChar(ch)
-      : row === 1 && (i === EYE_L_COL || i === EYE_R_COL) && isEyeGlowChar(ch);
+    const isEyeGlyph = row === layout.eyeRow && layout.eyeCols.includes(i) && isEyeGlowChar(ch);
     const isCascadeFlank =
-      !isGrand && row === 0 && (i === BROW_L_COL || i === BROW_R_COL) && ch !== "_" && ch !== "·" && ch !== " ";
-    const isCascadeCenter = !isGrand && row === 0 && i === THIRD_EYE_COL && ch !== "_" && ch !== "·" && ch !== " ";
-    const isBeakEmit = isGrand
-      ? row === 3 && i === GRAND_CENTER_COL && ch !== "▽" && ch !== "·" && ch !== " "
-      : row === 2 && i === BEAK_GLYPH_COL && ch !== "▽" && ch !== "·" && ch !== " ";
+      layout.cascadeRow === row &&
+      layout.cascadeCols?.includes(i) &&
+      ch !== "_" &&
+      ch !== "·" &&
+      ch !== " " &&
+      ch !== "█" &&
+      ch !== "▓" &&
+      ch !== "▒" &&
+      ch !== "◆" &&
+      ch !== "◇" &&
+      ch !== "─" &&
+      ch !== "■" &&
+      ch !== "□";
+    const isBeakEmit =
+      row === layout.beakRow &&
+      i === layout.beakCol &&
+      ch !== "▽" &&
+      ch !== "·" &&
+      ch !== "◇" &&
+      ch !== " ";
     const isSpineEmit =
-      isGrand &&
-      ((row === 1 && i === GRAND_CENTER_COL) || (row === 2 && i === GRAND_CENTER_COL) || row >= 6) &&
+      layout.spineRows?.includes(row) &&
+      i === layout.spineCol &&
       ch !== " " &&
       ch !== "_" &&
       ch !== "=" &&
@@ -117,7 +288,6 @@ function colorizeLine(
           fixedCells ? "hoot-ascii-cell" : undefined,
           isEyeGlyph ? "hoot-ascii-eye-glyph" : undefined,
           isCascadeFlank ? "hoot-ascii-emit-glyph" : undefined,
-          isCascadeCenter ? "hoot-ascii-cascade-center hoot-ascii-emit-glyph" : undefined,
           isBeakEmit || isSpineEmit ? "hoot-ascii-beak-emit hoot-ascii-emit-glyph" : undefined,
         ]
           .filter(Boolean)
@@ -140,20 +310,20 @@ function AsciiBlock({
   frame,
   wordmarkStart,
   fixedCells,
-  isGrand,
+  faceStyle,
 }: {
   lines: string[];
   mood: HootMood;
   frame: number;
   wordmarkStart: number;
   fixedCells: boolean;
-  isGrand: boolean;
+  faceStyle: HootFaceStyle;
 }) {
   return (
     <>
       {lines.map((line, row) => (
         <div key={row} className="hoot-ascii-line" aria-hidden={row >= wordmarkStart}>
-          {colorizeLine(line, mood, frame, row, row >= wordmarkStart, fixedCells, isGrand)}
+          {colorizeLine(line, mood, frame, row, row >= wordmarkStart, fixedCells, faceStyle)}
         </div>
       ))}
     </>
@@ -171,52 +341,49 @@ export default function HootLogo({
   onClick,
   className,
   trackMouse = true,
-  variant = "compact",
+  variant,
+  faceStyle: faceStyleProp = "grand",
 }: HootLogoProps) {
   const ref = useRef<HTMLButtonElement | HTMLDivElement>(null);
   const [frameInternal, setFrameInternal] = useState(0);
   const [offset, setOffset] = useState<PupilOffset>(ZERO_OFFSET);
   const [menu, setMenu] = useState<HootMenuState | null>(null);
   const [paused, setPaused] = useState(false);
-  const [variantPref, setVariantPref] = useState<"compact" | "grand" | null>(() => {
-    try {
-      const v = localStorage.getItem("hoot-face-variant");
-      return v === "grand" || v === "compact" ? v : null;
-    } catch {
-      return null;
-    }
-  });
+  const [stylePref, setStylePref] = useState<HootFaceStyle | null>(() => readStoredHootFaceStyle());
   const frozenFrame = useRef(0);
 
   const liveFrame = frameProp ?? frameInternal;
   if (!paused) frozenFrame.current = liveFrame;
   const frame = paused ? frozenFrame.current : liveFrame;
-  const effectiveVariant = variantPref ?? variant;
-  const isGrand = effectiveVariant === "grand" && !showWordmark && Boolean(moodContext);
+  const effectiveStyle = stylePref ?? variant ?? faceStyleProp;
+  const styleMeta = HOOT_FACE_STYLE_META[effectiveStyle];
+  const ctx = faceContext(mood, moodContext);
 
   const allLines = showWordmark
     ? renderBrandLines(mood, offset, frame)
-    : isGrand
-      ? renderGrandLines(moodContext!, frame, statusLine)
-      : renderCompactLines(mood, offset, frame, statusLine, moodContext);
+    : renderFaceLines(effectiveStyle, mood, ctx, offset, frame, statusLine);
 
-  const faceRowCount = isGrand ? GRAND_FACE_ROWS : HOOT_FACE_ROWS;
+  const faceRowCount = showWordmark ? allLines.length : styleMeta.faceRows;
   const faceLines = showWordmark ? allLines : allLines.slice(0, faceRowCount);
-  const captionLine = !showWordmark && allLines.length > faceRowCount ? allLines[faceRowCount] : null;
+  const captionLine =
+    !showWordmark && styleMeta.hasCaption && allLines.length > faceRowCount ? allLines[faceRowCount] : null;
   const lines = showWordmark ? allLines : faceLines;
 
   const lineCount = showWordmark ? allLines.length : faceRowCount;
   const fontSize = showWordmark ? size / (lineCount + 1) : size / (lineCount - 0.05);
   const wordmarkStart = showWordmark ? allLines.length - 2 : faceRowCount;
-  const gridWidth = isGrand ? GRAND_WIDTH : WIDTH;
+  const gridWidth = styleMeta.width;
+  const layout = GLOW_LAYOUT[effectiveStyle];
 
   useEffect(() => {
     if (frameProp !== undefined || paused) return;
-    const cognitive = !showWordmark && !isGrand;
-    const ms = isGrand ? GRAND_TICK_MS : moodFrameInterval(mood, cognitive);
+    const ms =
+      effectiveStyle === "compact"
+        ? moodFrameInterval(mood, true)
+        : styleMeta.tickMs || moodFrameInterval(mood, false);
     const id = setInterval(() => setFrameInternal((f) => f + 1), ms);
     return () => clearInterval(id);
-  }, [frameProp, mood, showWordmark, isGrand, paused]);
+  }, [frameProp, mood, showWordmark, effectiveStyle, styleMeta.tickMs, paused]);
 
   const onMouseMove = useCallback(
     (e: React.MouseEvent) => {
@@ -241,24 +408,21 @@ export default function HootLogo({
     [showWordmark],
   );
 
-  const toggleVariant = useCallback(() => {
-    const next = effectiveVariant === "grand" ? "compact" : "grand";
-    setVariantPref(next);
-    try {
-      localStorage.setItem("hoot-face-variant", next);
-    } catch {
-      /* storage unavailable */
-    }
-  }, [effectiveVariant]);
+  const cycleFaceStyle = useCallback(() => {
+    const next = nextFaceStyle(effectiveStyle);
+    setStylePref(next);
+    persistHootFaceStyle(next);
+  }, [effectiveStyle]);
 
   const copySnapshot = useCallback(() => {
     navigator.clipboard?.writeText(allLines.join("\n")).catch(() => {});
   }, [allLines]);
 
   const copyStatus = useCallback(() => {
-    const report = `HOOT ${effectiveVariant} face · mood: ${mood}` + (statusLine ? ` · ${statusLine}` : "");
+    const report =
+      `HOOT ${styleMeta.label} face · mood: ${mood}` + (statusLine ? ` · ${statusLine}` : "");
     navigator.clipboard?.writeText(report).catch(() => {});
-  }, [effectiveVariant, mood, statusLine]);
+  }, [styleMeta.label, mood, statusLine]);
 
   const style: CSSProperties = {
     margin: 0,
@@ -274,15 +438,15 @@ export default function HootLogo({
     color: moodColor(mood),
     textAlign: "center",
     position: "relative",
-    overflow: "hidden",
+    overflow:
+      className?.includes("hoot-deck-owl") || className?.includes("hoot-float-owl") ? "visible" : "hidden",
     boxShadow: showWordmark ? "inset 0 0 0 1px rgba(232,213,163,0.08)" : undefined,
   };
 
-  const motionClass = showWordmark ? asciiMotionClass(mood) : "hoot-ascii--cognitive";
-  const beakRow = faceLines[isGrand ? 3 : 2] ?? "";
-  const beakCol = isGrand ? GRAND_CENTER_COL : BEAK_GLYPH_COL;
-  const beakGlyph = beakRow[beakCol] ?? "";
-  const hasEmit = Boolean(!showWordmark && beakGlyph && beakGlyph !== "▽" && beakGlyph !== "·");
+  const motionClass = showWordmark ? asciiMotionClass(mood) : styleMeta.motionClass;
+  const beakRow = faceLines[layout.beakRow] ?? "";
+  const beakGlyph = beakRow[layout.beakCol] ?? "";
+  const hasEmit = Boolean(!showWordmark && beakGlyph && beakGlyph !== "▽" && beakGlyph !== "·" && beakGlyph !== "◇");
   const Tag = onClick ? "button" : "div";
 
   return (
@@ -309,17 +473,17 @@ export default function HootLogo({
           frame={frame}
           wordmarkStart={wordmarkStart}
           fixedCells={!showWordmark}
-          isGrand={isGrand}
+          faceStyle={effectiveStyle}
         />
       </div>
       {menu && (
         <HootContextMenu
           menu={menu}
           paused={paused}
-          variant={effectiveVariant}
+          faceStyle={effectiveStyle}
           onClose={() => setMenu(null)}
           onTogglePause={() => setPaused((v) => !v)}
-          onToggleVariant={toggleVariant}
+          onCycleFaceStyle={cycleFaceStyle}
           onCopySnapshot={copySnapshot}
           onCopyStatus={copyStatus}
         />

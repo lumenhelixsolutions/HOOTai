@@ -1,3 +1,5 @@
+import { getTooltip } from "./tooltips";
+
 export type ViewDoc = {
   title: string;
   group: string;
@@ -7,129 +9,47 @@ export type ViewDoc = {
   tips: string[];
 };
 
+function fromTooltip(id: Parameters<typeof getTooltip>[0], group: string): ViewDoc {
+  const t = getTooltip(id);
+  return {
+    title: t.title,
+    group,
+    summary: t.body,
+    features: t.features || [],
+    orchestration: t.orchestration || "",
+    tips: t.tips || [],
+  };
+}
+
 export const VIEW_DOCS: Record<string, ViewDoc> = {
-  "/": {
-    title: "Overview",
-    group: "Command Center",
-    summary: "Mission dashboard — see profile health, active project, and what needs attention before you launch.",
-    features: [
-      "Ready / Fixable / Blocked profile counts",
-      "Active project switcher (scopes scans & launches)",
-      "Portfolio git health alerts",
-      "Memory evidence preview",
-    ],
-    orchestration: "Start each session here. Resolve blockers before moving to Launch.",
-    tips: ["Run Readiness if scan is stale", "Click a blocked profile to see why in Memory"],
-  },
-  "/scan": {
-    title: "Readiness",
-    group: "Command Center",
-    summary: "Full system scan — agents, models, env keys, GPU, RTK, llama.cpp.",
-    features: ["Run Scan button refreshes all detection", "Ollama loaded models", "Missing agent install hints"],
-    orchestration: "Run after any install or env change. Feeds Stack Builder and profile scoring.",
-    tips: ["Scan before first launch of the day", "Fix Ollama before local profiles"],
-  },
-  "/profiles": {
-    title: "Profiles",
-    group: "Command Center",
-    summary: "Pick a launch profile — Easy 1-2-3 or Advanced agent groups.",
-    features: ["Easy: Agent → Task → Launch", "Audit preview panel", "Telemetry per profile"],
-    orchestration: "Select Ready profile → preview audit → launch → Sessions.",
-    tips: ["Use Easy mode with 12+ profiles", "Blocked profiles need Memory check"],
-  },
-  "/launch": {
-    title: "Launch Center",
-    group: "Command Center",
-    summary: "Goal-based launch staging with audit preview.",
-    features: ["Privacy / speed / local goals", "Recommended vs blocked lists", "Script preview"],
-    orchestration: "Set goal → preview top pick → launch when audit is clean.",
-    tips: ["Never skip audit preview on experimental profiles"],
-  },
-  "/terminal": {
-    title: "Sessions",
-    group: "Command Center",
-    summary: "Monitor live agent terminals.",
-    features: ["Session list", "Stream output", "Send input", "Report outcome"],
-    orchestration: "Watch launches here. Report outcome so Memory learns.",
-    tips: ["Report outcome when session ends", "Use Stop for runaway processes"],
-  },
-  "/memory": {
-    title: "Memory",
-    group: "Intelligence",
-    summary: "Evidence store — blocks bad launches after repeated failures.",
-    features: ["Markdown evidence blocks", "Manual edit", "Parsed on every launch"],
-    orchestration: "Check when profiles show Blocked. Fix cause, don't override blindly.",
-    tips: ["Ask AI Coach to explain a block", "Edit carefully — launches read this file"],
-  },
-  "/builder": {
-    title: "Stack Builder",
-    group: "Build + Configure",
-    summary: "Compose agent + model + tools with health scoring.",
-    features: ["Wizard steps", "Quick templates", "Install tab", "Save as profile"],
-    orchestration: "Build → fix score → save profile → launch from Profiles.",
-    tips: ["● marks detected agents / loaded models", "Use MCP git instead of raw shell"],
-  },
-  "/skills": {
-    title: "Skills",
-    group: "Build + Configure",
-    summary: "Compound engineering skills catalog.",
-    features: ["Browse by category", "Skill content viewer"],
-    orchestration: "Reference before picking a profile for a complex task.",
-    tips: ["Match skill category to your task intent"],
-  },
-  "/modules": {
-    title: "Modules",
-    group: "Build + Configure",
-    summary: "Prefab inventory — packs, built-ins, CE skills/agents, and MCP servers.",
-    features: [
-      "Bundled vs cached vs detected summary",
-      "Compound Engineering sync and full setup",
-      "Skills catalog with cached/metadata badges",
-      "MCP git/fetch enable toggles",
-    ],
-    orchestration: "Check inventory → sync 9 core skills → full setup into detected frontends.",
-    tips: ["21 agents in catalog · 51 in upstream plugin", "HOOT reacts when sync or install runs"],
-  },
-  "/activity": {
-    title: "Activity",
-    group: "Intelligence",
-    summary: "Session diary, radar history, and telemetry calendar.",
-    features: ["Today's event timeline", "Heatmap calendar", "Agent radar diffs"],
-    orchestration: "Review after sessions to see what HOOT logged.",
-    tips: ["HOOT switches to logging mood on this view"],
-  },
-  "/deck": {
-    title: "Command Deck",
-    group: "Command Center",
-    summary: "Live cooldown monitor — provider gauges, recovery timeline, workspace context radar, and save-state handoffs.",
-    features: [
-      "Radial countdown gauges per provider with quick cooldown presets",
-      "Next-8-hours recovery timeline (unlocks + daily resets)",
-      "Context radar: files touched in your workspace roots + token cost",
-      "One-click auto_handoff.md save-state generator",
-      "Pop-out always-on-top floating monitor (Chromium PiP)",
-    ],
-    orchestration: "Check before switching providers. Mark cooldowns when you hit a limit; generate a save-state before the handoff.",
-    tips: ["The top-bar strip shows the deck everywhere", "Copy the matrix line into your next AI's first message"],
-  },
-  "/settings": {
-    title: "Settings",
-    group: "Build + Configure",
-    summary: "API keys, providers, llama.cpp, server settings.",
-    features: ["Local browser key storage", "llama.cpp GGUF path", "RTK scan hints"],
-    orchestration: "Configure once. Re-scan after local inference changes.",
-    tips: ["AI Coach chat needs a provider key for full LLM answers"],
-  },
+  "/": fromTooltip("nav.overview", "Command Center"),
+  "/scan": fromTooltip("nav.readiness", "Command Center"),
+  "/profiles": fromTooltip("nav.profiles", "Command Center"),
+  "/launch": fromTooltip("nav.launch", "Command Center"),
+  "/terminal": fromTooltip("nav.sessions", "Command Center"),
+  "/deck": fromTooltip("nav.deck", "Command Center"),
+  "/activity": fromTooltip("nav.activity", "Intelligence"),
+  "/burn": fromTooltip("nav.burn", "Intelligence"),
+  "/bench": fromTooltip("nav.bench", "Intelligence"),
+  "/approvals": fromTooltip("nav.approvals", "Intelligence"),
+  "/portfolio": fromTooltip("nav.portfolio", "Intelligence"),
+  "/pipeline": fromTooltip("nav.pipeline", "Intelligence"),
+  "/memory": fromTooltip("nav.memory", "Intelligence"),
+  "/builder": fromTooltip("nav.builder", "Build + Configure"),
+  "/skills": fromTooltip("nav.modules", "Build + Configure"),
+  "/modules": fromTooltip("nav.modules", "Build + Configure"),
+  "/settings": fromTooltip("nav.settings", "Build + Configure"),
+  "/docs": fromTooltip("nav.docs", "Build + Configure"),
 };
 
 export function getViewDoc(path: string): ViewDoc {
   return VIEW_DOCS[path] || {
     title: "HOOT",
     group: "Command Center",
-    summary: "Local AI command center — scan, launch, monitor.",
-    features: ["Use sidebar navigation"],
+    summary: "Local AI command center — scan, launch, monitor, and hand off across providers.",
+    features: ["Use sidebar navigation", "Ctrl+K command palette", "Ask the AI Coach on any screen"],
     orchestration: "Overview → Readiness → Profiles → Launch → Sessions → Memory",
-    tips: ["Ask the AI Coach on any screen"],
+    tips: ["Open Documentation for bundled operator guides", "Check Command Deck before switching providers"],
   };
 }
 

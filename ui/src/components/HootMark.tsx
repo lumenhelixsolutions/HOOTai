@@ -3,6 +3,12 @@ import { useLocation } from "react-router-dom";
 import { useCoach } from "@/context/CoachContext";
 import HootLogo from "@/lib/hoot-logo";
 import { moodFrameInterval, resolveHootMoodFromContext } from "@/lib/hoot-ascii";
+import {
+  HOOT_FACE_STYLE_META,
+  HOOT_FACE_VARIANT_EVENT,
+  readStoredHootFaceStyle,
+  type HootFaceStyle,
+} from "@/lib/hoot-face-styles";
 
 type HootMarkProps = {
   size?: number;
@@ -13,6 +19,7 @@ export default function HootMark({ size = 44 }: HootMarkProps) {
   const location = useLocation();
   const { hootError, coachOpen, chatLoading, pageContext, topHint } = useCoach();
   const [frame, setFrame] = useState(0);
+  const [faceStyle, setFaceStyle] = useState<HootFaceStyle>(() => readStoredHootFaceStyle("grand"));
 
   const moodContext = useMemo(
     () => ({
@@ -28,11 +35,31 @@ export default function HootMark({ size = 44 }: HootMarkProps) {
   );
 
   const mood = resolveHootMoodFromContext(moodContext);
+  const styleMeta = HOOT_FACE_STYLE_META[faceStyle];
 
   useEffect(() => {
-    const id = setInterval(() => setFrame((f) => f + 1), moodFrameInterval(mood, true));
-    return () => clearInterval(id);
-  }, [mood]);
+    const onStyle = (e: Event) => setFaceStyle((e as CustomEvent<HootFaceStyle>).detail);
+    window.addEventListener(HOOT_FACE_VARIANT_EVENT, onStyle);
+    return () => window.removeEventListener(HOOT_FACE_VARIANT_EVENT, onStyle);
+  }, []);
 
-  return <HootLogo mood={mood} moodContext={moodContext} size={size} frame={frame} trackMouse={false} />;
+  const effectiveSize = Math.max(size, styleMeta.minSize);
+
+  useEffect(() => {
+    const ms =
+      faceStyle === "compact" ? moodFrameInterval(mood, true) : styleMeta.tickMs || moodFrameInterval(mood, true);
+    const id = setInterval(() => setFrame((f) => f + 1), ms);
+    return () => clearInterval(id);
+  }, [mood, faceStyle, styleMeta.tickMs]);
+
+  return (
+    <HootLogo
+      mood={mood}
+      moodContext={moodContext}
+      size={effectiveSize}
+      frame={frame}
+      trackMouse={false}
+      faceStyle={faceStyle}
+    />
+  );
 }

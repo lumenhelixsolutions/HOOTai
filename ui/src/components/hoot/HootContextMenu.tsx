@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Camera, ClipboardCopy, Maximize2, MessageCircle, Pause, Play, Repeat } from "lucide-react";
+import { Camera, ClipboardCopy, Layers, Maximize2, MessageCircle, Pause, PictureInPicture2, Play, Repeat } from "lucide-react";
+import { HOOT_FACE_STYLE_META, nextFaceStyle, type HootFaceStyle } from "@/lib/hoot-face-styles";
 
 export interface HootMenuState {
   x: number;
@@ -10,10 +11,10 @@ export interface HootMenuState {
 interface Props {
   menu: HootMenuState;
   paused: boolean;
-  variant: "compact" | "grand";
+  faceStyle: HootFaceStyle;
   onClose: () => void;
   onTogglePause: () => void;
-  onToggleVariant: () => void;
+  onCycleFaceStyle: () => void;
   onCopySnapshot: () => void;
   onCopyStatus: () => void;
 }
@@ -22,14 +23,16 @@ interface Props {
 export default function HootContextMenu({
   menu,
   paused,
-  variant,
+  faceStyle,
   onClose,
   onTogglePause,
-  onToggleVariant,
+  onCycleFaceStyle,
   onCopySnapshot,
   onCopyStatus,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const current = HOOT_FACE_STYLE_META[faceStyle];
+  const upcoming = HOOT_FACE_STYLE_META[nextFaceStyle(faceStyle)];
 
   useEffect(() => {
     const away = (e: MouseEvent) => {
@@ -57,9 +60,9 @@ export default function HootContextMenu({
     { icon: paused ? Play : Pause, label: paused ? "Resume face" : "Pause face", action: onTogglePause },
     {
       icon: Repeat,
-      label: variant === "grand" ? "Compact face" : "Grand face",
-      hint: "switch silhouette",
-      action: onToggleVariant,
+      label: `Face: ${current.label}`,
+      hint: `next · ${upcoming.label}`,
+      action: onCycleFaceStyle,
     },
     {
       icon: MessageCircle,
@@ -68,9 +71,20 @@ export default function HootContextMenu({
       action: () => window.dispatchEvent(new CustomEvent("hoot:open-coach")),
     },
     {
+      icon: PictureInPicture2,
+      label: "Float owl above windows",
+      hint: "transparent PiP",
+      action: () => window.dispatchEvent(new CustomEvent("hoot:open-owl-float")),
+    },
+    {
       icon: Maximize2,
-      label: "Cooldown popout",
+      label: "Detach coach panel",
       action: () => window.dispatchEvent(new CustomEvent("hoot:open-popout")),
+    },
+    {
+      icon: Layers,
+      label: "Cooldown deck popout",
+      action: () => window.dispatchEvent(new CustomEvent("hoot:open-deck-popout")),
     },
     { icon: Camera, label: "Copy face snapshot", hint: "ASCII frame", action: onCopySnapshot },
     { icon: ClipboardCopy, label: "Copy status report", action: onCopyStatus },
@@ -88,7 +102,7 @@ export default function HootContextMenu({
       style={{ left, top }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      <div className="hoot-menu-head">HOOT · ops owl</div>
+      <div className="hoot-menu-head">HOOT · {current.tagline}</div>
       {items.map(({ icon: Icon, label, hint, action }) => (
         <button key={label} role="menuitem" className="hoot-menu-item" onClick={fire(action)}>
           <Icon size={14} />

@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 import { useCoach } from "@/context/CoachContext";
 import type { BenchResultsPayload, BenchRow } from "@/lib/bench-types";
 import { useSessionPoll } from "@/hooks/useSessionPoll";
+import { asScanArray, normalizeLoadedModels } from "@/lib/scan-normalize";
 
 const DEFAULT_PRESETS = ["phi3:mini", "qwen2.5:1.5b", "smollm2:360m"];
 
@@ -84,11 +85,11 @@ export default function BenchPage() {
         local_models?: { backends?: Array<{ id?: string; server?: { reachable?: boolean } }> };
         gpu?: { name?: string };
       };
-      const loaded = (s?.ollama?.loaded_models || [])
+      const loaded = normalizeLoadedModels(s)
         .map((m) => m.name)
         .filter((n): n is string => Boolean(n));
       if (loaded.length) setScanPresets(loaded);
-      const llama = (s?.local_models?.backends || []).find((b) => b.id === "llamacpp");
+      const llama = asScanArray(s?.local_models?.backends).find((b) => b.id === "llamacpp");
       setScanVitals({
         ollama: loaded.length > 0,
         llamacpp: Boolean(llama?.server?.reachable),

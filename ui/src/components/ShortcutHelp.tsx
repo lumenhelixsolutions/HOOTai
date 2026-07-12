@@ -9,6 +9,7 @@ const SHORTCUTS: Array<{ keys: string[]; action: string }> = [
   { keys: ["↑", "↓"], action: "Move through palette results" },
   { keys: ["Enter"], action: "Run the highlighted command" },
   { keys: ["Esc"], action: "Close palette or this overlay" },
+  { keys: ["Docs"], action: "Sidebar → Documentation, or Ctrl+K → Documentation" },
 ];
 
 /** `?` overlay listing every implemented keyboard shortcut. */

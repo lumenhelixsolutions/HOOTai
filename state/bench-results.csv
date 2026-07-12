@@ -1,0 +1,2 @@
+model,status,latency_ms,tokens_per_sec,note,backend
+llamacpp:gguf,missing,0,0,"GGUF modelPath not set or file missing in user-settings",llamacpp

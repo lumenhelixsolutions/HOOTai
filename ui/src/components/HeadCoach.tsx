@@ -5,8 +5,6 @@ import CoachThread from "@/components/coach/CoachThread";
 import { useCoachCommandExecute } from "@/lib/useCoachCommandExecute";
 import { Bot, X, MessageCircle, ChevronRight } from "lucide-react";
 
-const SESSION_ID = "ai-coach-" + Math.random().toString(36).slice(2, 8);
-
 function getApiKey(): string | null {
   return localStorage.getItem("agentdock_gemini_key") || localStorage.getItem("agentdock_api_key");
 }
@@ -23,7 +21,7 @@ const toneStyles = {
 
 export default function HeadCoach() {
   const navigate = useNavigate();
-  const { topHint, viewGuide, dismissHint, coachOpen, setCoachOpen, consumeChatPrompt, emitCoachAction, queueChatPrompt } = useCoach();
+  const { topHint, viewGuide, dismissHint, coachOpen, setCoachOpen, consumeChatPrompt, emitCoachAction, queueChatPrompt, coachSessionId } = useCoach();
   const [bubbleVisible, setBubbleVisible] = useState(true);
   const [composerPrompt, setComposerPrompt] = useState<string | null>(null);
 
@@ -154,7 +152,7 @@ export default function HeadCoach() {
             </button>
           </div>
           <CoachThread
-            sessionId={SESSION_ID}
+            sessionId={coachSessionId}
             pendingPrompt={composerPrompt}
             onPromptConsumed={() => setComposerPrompt(null)}
             onCommand={executeCmd}

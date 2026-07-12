@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { ArrowRight, Route } from "lucide-react";
+import { ArrowRight, BookText, Route } from "lucide-react";
 import { getViewDoc, ORCHESTRATION_STEPS } from "@/lib/app-docs";
 import HelpTooltip from "./HelpTooltip";
 import { useCoach } from "@/context/CoachContext";
@@ -30,32 +30,53 @@ export default function ViewGuideBar() {
             <span style={{ fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: "rgba(255,211,154,0.75)" }}>
               {doc.group} · Screen guide
             </span>
-            <HelpTooltip title={doc.title} body={doc.summary} features={doc.features} />
+            <HelpTooltip title={doc.title} body={doc.summary} features={doc.features} orchestration={doc.orchestration} tips={doc.tips} />
           </div>
           <div style={{ fontSize: 14, lineHeight: 1.55, color: "rgba(245,245,245,0.82)" }}>{doc.summary}</div>
           <div style={{ fontSize: 12, marginTop: 8, color: "rgba(236,232,225,0.55)", lineHeight: 1.5 }}>
             <strong style={{ color: "rgba(255,211,154,0.8)", fontWeight: 500 }}>Orchestration:</strong> {doc.orchestration}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => queueChatPrompt(`I'm on ${doc.title}. What should I do on this screen right now, and what's next in the operator loop?`)}
-          style={{
-            padding: "8px 14px",
-            borderRadius: 10,
-            border: "1px solid rgba(255,176,66,0.3)",
-            background: "rgba(255,176,66,0.1)",
-            color: "#ffb042",
-            cursor: "pointer",
-            fontSize: 12,
-            whiteSpace: "nowrap",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          Ask HOOT <ArrowRight size={12} />
-        </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={() => queueChatPrompt(`I'm on ${doc.title}. What should I do on this screen right now, and what's next in the operator loop?`)}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 10,
+              border: "1px solid rgba(255,176,66,0.3)",
+              background: "rgba(255,176,66,0.1)",
+              color: "#ffb042",
+              cursor: "pointer",
+              fontSize: 12,
+              whiteSpace: "nowrap",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            Ask HOOT <ArrowRight size={12} />
+          </button>
+          <Link
+            to="/docs"
+            title="Open bundled operator guides and implementation plans"
+            style={{
+              padding: "8px 14px",
+              borderRadius: 10,
+              border: "1px solid rgba(255,255,255,0.1)",
+              background: "rgba(255,255,255,0.03)",
+              color: "rgba(236,232,225,0.75)",
+              textDecoration: "none",
+              fontSize: 12,
+              whiteSpace: "nowrap",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <BookText size={12} /> Docs
+          </Link>
+        </div>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>

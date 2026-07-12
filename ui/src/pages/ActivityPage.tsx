@@ -16,6 +16,7 @@ import ActivityLiveStrip from "@/components/activity/ActivityLiveStrip";
 import ActivitySessionCards from "@/components/activity/ActivitySessionCards";
 import ActivityTelemetryHealthPanel from "@/components/activity/ActivityTelemetryHealth";
 import ActivityDayRollup from "@/components/activity/ActivityDayRollup";
+import { useSessionPoll } from "@/hooks/useSessionPoll";
 
 const DAY_OPTIONS = [7, 30, 90] as const;
 type PatternTab = "calendar" | "drivers" | "agents" | "projects";
@@ -72,16 +73,7 @@ export default function ActivityPage() {
     }
   }, [days, setPageContext]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (isPageVisible()) load({ touchRadar: true });
-    }, 60000);
-    return () => clearInterval(id);
-  }, [load]);
+  useSessionPoll(() => load({ touchRadar: true }), { immediate: true });
 
   const timelineDate = selectedDate || analytics?.range.to || null;
 

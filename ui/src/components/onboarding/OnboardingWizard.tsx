@@ -139,7 +139,7 @@ export default function OnboardingWizard({
               Scan discovers agents and keys; project registry reveals repos; workspace layout is inferred from each project's folders — no fixed directory template.
             </p>
           </div>
-          <button type="button" onClick={() => run("dismiss", () => api.postOnboarding({ action: "dismiss" }).then(() => onClose()))} className="rounded-lg border border-border p-2 opacity-60 hover:opacity-100" title="Continue later">
+          <button type="button" onClick={() => run("dismiss", () => api.postOnboarding({ action: "dismiss" }).then(() => onClose()))} className="rounded-lg border border-border p-2 opacity-60 hover:opacity-100" title="Dismiss the workspace setup wizard — reopen anytime via Ctrl+K → Workspace setup wizard">
             <X size={16} />
           </button>
         </div>

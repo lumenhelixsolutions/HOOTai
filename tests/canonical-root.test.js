@@ -8,7 +8,13 @@ const {
 } = require('../canonical-root');
 
 describe('canonical-root', () => {
-  it('treats Hoot as canonical', () => {
+  it('treats HootAi as canonical', () => {
+    const root = path.join('D:', 'projects', 'HootAi');
+    assert.strictEqual(isLegacyAgentdockPath(root), false);
+    assert.strictEqual(resolveCanonicalHootRoot(root), path.resolve(root));
+  });
+
+  it('still accepts Hoot as canonical alias', () => {
     const root = path.join('D:', 'projects', 'Hoot');
     assert.strictEqual(isLegacyAgentdockPath(root), false);
     assert.strictEqual(resolveCanonicalHootRoot(root), path.resolve(root));
@@ -19,13 +25,13 @@ describe('canonical-root', () => {
     assert.strictEqual(isLegacyAgentdockPath(legacy), true);
   });
 
-  it('resolves legacy agentdock to sibling Hoot when present', () => {
+  it('resolves legacy agentdock to sibling HootAi when present', () => {
     const legacy = path.join('D:', 'projects', 'agentdock');
-    const hoot = path.join('D:', 'projects', 'Hoot');
+    const hoot = path.join('D:', 'projects', 'HootAi');
     assert.strictEqual(resolveCanonicalHootRoot(legacy), path.resolve(hoot));
   });
 
   it('documents canonical portfolio path', () => {
-    assert.match(CANONICAL_HOOT_PATH, /Hoot/i);
+    assert.match(CANONICAL_HOOT_PATH, /HootAi/i);
   });
 });

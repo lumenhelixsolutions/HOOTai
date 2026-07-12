@@ -69,6 +69,7 @@ type CoachContextValue = {
   clearHootError: () => void;
   hootStatus: string | null;
   setHootStatus: (status: string | null) => void;
+  coachSessionId: string;
 };
 
 const CoachContext = createContext<CoachContextValue | null>(null);
@@ -91,6 +92,19 @@ function saveDismissed(set: Set<string>) {
   localStorage.setItem("agentdock_coach_dismissed", JSON.stringify({ day: today, ids: [...set] }));
 }
 
+function ensureCoachSessionId() {
+  const storageKey = "hoot_coach_session_id";
+  try {
+    const existing = sessionStorage.getItem(storageKey);
+    if (existing) return existing;
+    const created = `ai-coach-${Math.random().toString(36).slice(2, 10)}`;
+    sessionStorage.setItem(storageKey, created);
+    return created;
+  } catch {
+    return `ai-coach-${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
 export function CoachProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [pageContext, setPageContextState] = useState<Record<string, unknown>>({});
@@ -107,6 +121,7 @@ export function CoachProvider({ children }: { children: ReactNode }) {
   const [hootError, setHootError] = useState<HootError | null>(null);
   const [hootStatusManual, setHootStatusManual] = useState<string | null>(null);
   const moodTtlRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const coachSessionId = useMemo(() => ensureCoachSessionId(), []);
 
   const setHootPinned = useCallback((pinned: boolean) => {
     setHootPinnedState(pinned);
@@ -224,7 +239,7 @@ export function CoachProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!coachOpen) return;
-    const sessionId = "default";
+    const sessionId = coachSessionId;
     const syncContext = () => {
       if (!isPageVisible()) return;
       const slim = slimCoachPageContext(location.pathname, pageContextRef.current);
@@ -233,7 +248,7 @@ export function CoachProvider({ children }: { children: ReactNode }) {
     syncContext();
     const id = setInterval(syncContext, 60000);
     return () => clearInterval(id);
-  }, [coachOpen, location.pathname]);
+  }, [coachOpen, location.pathname, coachSessionId]);
 
   const prevExternalRef = useRef<number | null>(null);
   const handoffSuggestedRef = useRef(false);
@@ -393,6 +408,7 @@ export function CoachProvider({ children }: { children: ReactNode }) {
     clearHootError,
     hootStatus,
     setHootStatus,
+    coachSessionId,
   };
 
   return <CoachContext.Provider value={value}>{children}</CoachContext.Provider>;

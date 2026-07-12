@@ -1,19 +1,15 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
-import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
-  BookOpen,
-  BookText,
   CalendarDays,
-  Cpu,
-  Flame,
   ChevronLeft,
   ChevronRight,
   Command,
   Compass,
+  Cpu,
+  Flame,
   Gauge,
-  Layers3,
   Menu,
   PanelLeft,
   PlayCircle,
@@ -26,16 +22,14 @@ import {
   Wrench,
   X,
 } from "lucide-react";
+import { Menu as AntMenu, Tooltip } from "antd";
+import PageErrorBoundary from "@/components/PageErrorBoundary";
+import type { MenuProps } from "antd";
 import ThemeToggle from "./ThemeToggle";
-import CommandPalette from "./CommandPalette";
-import ShortcutHelp from "./ShortcutHelp";
-import HootMascot from "./hoot/HootMascot";
 import HootMark from "./HootMark";
 import HootWordmark from "./HootWordmark";
 import { BRAND } from "@/lib/brand";
 import HelpTooltip from "./HelpTooltip";
-import ViewGuideBar from "./ViewGuideBar";
-import CooldownStrip from "./deck/CooldownStrip";
 import { CooldownRegistryProvider } from "@/context/CooldownRegistryContext";
 import { DeckPopoutProvider } from "./deck/popout";
 import { HootFloatProvider } from "./hoot/hoot-float";
@@ -46,63 +40,17 @@ import { getTooltip } from "@/lib/tooltips";
 import { toggleTheme } from "@/lib/theme";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useHootVersion } from "@/hooks/useHootVersion";
+import { useSidebarTooltips } from "@/hooks/useSidebarTooltips";
+import { APP_ROUTES, NAV_GROUP_ORDER, PRIORITY_ROUTE_PATHS, getRouteByPath, routeVisibleInMode, type UiMode } from "@/lib/app-shell";
+import { HOOT_ACTIONS } from "@/lib/hoot-control";
+import { useCoach } from "@/context/CoachContext";
 
-const priorityRoutes = ["/", "/scan", "/profiles", "/terminal"];
-
-const NAV_TOOLTIP_IDS = {
-  "/": "nav.overview",
-  "/scan": "nav.readiness",
-  "/profiles": "nav.profiles",
-  "/terminal": "nav.sessions",
-  "/launch": "nav.launch",
-  "/deck": "nav.deck",
-  "/activity": "nav.activity",
-  "/burn": "nav.burn",
-  "/bench": "nav.bench",
-  "/approvals": "nav.approvals",
-  "/pipeline": "nav.pipeline",
-  "/portfolio": "nav.portfolio",
-  "/memory": "nav.memory",
-  "/builder": "nav.builder",
-  "/modules": "nav.modules",
-  "/settings": "nav.settings",
-  "/docs": "nav.docs",
-} as const;
-
-const navGroups = [
-  {
-    title: "Command Center",
-    items: [
-      { label: "Overview", path: "/", icon: Radar, tipId: NAV_TOOLTIP_IDS["/"] },
-      { label: "Readiness", path: "/scan", icon: ShieldCheck, tipId: NAV_TOOLTIP_IDS["/scan"] },
-      { label: "Profiles", path: "/profiles", icon: Layers3, tipId: NAV_TOOLTIP_IDS["/profiles"] },
-      { label: "Sessions", path: "/terminal", icon: TerminalSquare, tipId: NAV_TOOLTIP_IDS["/terminal"] },
-      { label: "Launch Center", path: "/launch", icon: PlayCircle, tipId: NAV_TOOLTIP_IDS["/launch"] },
-      { label: "Command Deck", path: "/deck", icon: Gauge, tipId: NAV_TOOLTIP_IDS["/deck"] },
-    ],
-  },
-  {
-    title: "Intelligence",
-    items: [
-      { label: "Activity", path: "/activity", icon: CalendarDays, tipId: NAV_TOOLTIP_IDS["/activity"] },
-      { label: "Token Ledger", path: "/burn", icon: Flame, tipId: NAV_TOOLTIP_IDS["/burn"] },
-      { label: "Vitals", path: "/vitals", icon: Cpu, tipId: NAV_TOOLTIP_IDS["/bench"] },
-      { label: "Approvals", path: "/approvals", icon: ShieldCheck, tipId: NAV_TOOLTIP_IDS["/approvals"] },
-      { label: "Portfolio", path: "/portfolio", icon: Compass, tipId: NAV_TOOLTIP_IDS["/portfolio"] },
-      { label: "Pipeline", path: "/pipeline", icon: Workflow, tipId: NAV_TOOLTIP_IDS["/pipeline"] },
-      { label: "Memory", path: "/memory", icon: BookOpen, tipId: NAV_TOOLTIP_IDS["/memory"] },
-    ],
-  },
-  {
-    title: "Build + Configure",
-    items: [
-      { label: "Stack Builder", path: "/builder", icon: Sparkles, tipId: NAV_TOOLTIP_IDS["/builder"] },
-      { label: "Modules", path: "/modules", icon: Wrench, tipId: NAV_TOOLTIP_IDS["/modules"] },
-      { label: "Documentation", path: "/docs", icon: BookText, tipId: NAV_TOOLTIP_IDS["/docs"] },
-      { label: "Settings", path: "/settings", icon: SettingsIcon, tipId: NAV_TOOLTIP_IDS["/settings"] },
-    ],
-  },
-];
+const CommandPalette = lazy(() => import("./CommandPalette"));
+const ShortcutHelp = lazy(() => import("./ShortcutHelp"));
+const HootMascot = lazy(() => import("./hoot/HootMascot"));
+const OnboardingWizard = lazy(() => import("@/components/onboarding/OnboardingWizard"));
+const ViewGuideBar = lazy(() => import("./ViewGuideBar"));
+const CooldownStrip = lazy(() => import("./deck/CooldownStrip"));
 
 function isTypingTarget(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false;
@@ -111,13 +59,22 @@ function isTypingTarget(el: EventTarget | null): boolean {
 
 export default function AppLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const { setPageContext, registerActionHandler } = useCoach();
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingData, setOnboardingData] = useState<Awaited<ReturnType<typeof api.getOnboarding>> | null>(null);
+  const [uiMode, setUiMode] = useState<UiMode>(() => {
+    try {
+      return (localStorage.getItem("hoot-ui-mode") as UiMode) || "basic";
+    } catch {
+      return "basic";
+    }
+  });
   const versionInfo = useHootVersion();
 
   const loadOnboarding = useCallback(() => {
@@ -137,22 +94,34 @@ export default function AppLayout() {
     return () => window.removeEventListener("hoot-open-onboarding", open);
   }, []);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem("hoot-ui-mode", uiMode);
+    } catch {}
+  }, [uiMode]);
+
+  const navGroups = useMemo(
+    () =>
+      NAV_GROUP_ORDER.map((group) => ({
+        title: group,
+        items: APP_ROUTES.filter((route) => route.group === group && routeVisibleInMode(route, uiMode)),
+      })).filter((group) => group.items.length > 0),
+    [uiMode],
+  );
+
   const current = useMemo(() => {
-    for (const group of navGroups) {
-      const found = group.items.find((item) => item.path === location.pathname);
-      if (found) return { ...found, group: group.title };
-    }
-    return { label: BRAND.name, desc: BRAND.subtitle, group: "Command Center" };
-  }, [location.pathname]);
+    const visible = navGroups.flatMap((group) => group.items);
+    const found = visible.find((item) => item.path === location.pathname) || getRouteByPath(location.pathname);
+    if (found) return { ...found, desc: getTooltip(found.tipId).body };
+    return { label: BRAND.name, desc: BRAND.subtitle, group: "Command Center", tipId: "nav.overview", path: "/" };
+  }, [location.pathname, navGroups]);
 
   const viewDoc = useMemo(() => getViewDoc(location.pathname), [location.pathname]);
 
   const focusItems = useMemo(
     () =>
-      navGroups
-        .flatMap((group) => group.items)
-        .filter((item) => priorityRoutes.includes(item.path)),
-    [],
+      APP_ROUTES.filter((item) => PRIORITY_ROUTE_PATHS.includes(item.path) && routeVisibleInMode(item, uiMode)),
+    [uiMode],
   );
 
   // Close the mobile drawer on navigation
@@ -194,11 +163,32 @@ export default function AppLayout() {
     else setCollapsed((v) => !v);
   };
 
+  useEffect(() => {
+    setPageContext({ uiMode, currentRoute: location.pathname });
+  }, [location.pathname, setPageContext, uiMode]);
+
+  useEffect(() => {
+    return registerActionHandler((target) => {
+      if (target === HOOT_ACTIONS.SET_MODE_BASIC || target === HOOT_ACTIONS.OPEN_BASIC_WORKFLOW) {
+        setUiMode("basic");
+        navigate("/");
+      } else if (target === HOOT_ACTIONS.SET_MODE_ADVANCED || target === HOOT_ACTIONS.OPEN_ADVANCED_WORKFLOW) {
+        setUiMode("advanced");
+        navigate("/deck");
+      } else if (target === HOOT_ACTIONS.OPEN_ONBOARDING) {
+        setOnboardingOpen(true);
+      }
+    });
+  }, [navigate, registerActionHandler]);
+
   const sidebar = (
     <SidebarContent
       collapsed={!isMobile && collapsed}
       pathname={location.pathname}
       focusItems={focusItems}
+      navGroups={navGroups}
+      uiMode={uiMode}
+      setUiMode={setUiMode}
       versionInfo={versionInfo}
       onCollapseToggle={() => setCollapsed((v) => !v)}
       showCollapseToggle={!isMobile}
@@ -246,7 +236,7 @@ export default function AppLayout() {
           className="flex min-h-screen flex-1 flex-col transition-[margin-left] duration-200"
           style={{ marginLeft: isMobile ? 0 : collapsed ? 88 : 280 }}
         >
-          <header className="sticky top-0 z-40 flex items-center justify-between gap-4 border-b border-border bg-background/80 px-4 py-4 backdrop-blur-xl md:px-7 md:py-5">
+          <header className="sticky top-0 z-40 flex flex-wrap items-start justify-between gap-4 border-b border-border bg-background/80 px-4 py-4 backdrop-blur-xl md:px-7 md:py-5">
             <div className="flex min-w-0 flex-col gap-3">
               <div className="flex flex-wrap items-center gap-2.5">
                 {isMobile && (
@@ -283,17 +273,19 @@ export default function AppLayout() {
                 <TopMetric
                   icon={<Radar size={16} strokeWidth={1.9} className="hoot-gold-text" />}
                   label="Primary loop"
-                  value="Overview → Readiness → Profiles → Sessions"
+                  value={uiMode === "basic" ? "Home → Readiness → Build → Launch → Session" : "Operate → Intelligence → Configure"}
                 />
                 <TopMetric
                   icon={<PanelLeft size={16} strokeWidth={1.9} className="text-green-300" />}
                   label="Operator focus"
-                  value="Resolve blockers, launch with intent, stay in context"
+                  value={uiMode === "basic" ? "Let HOOT route you through scan, prefab choice, and guided launch" : "Keep launch authority in one place while advanced surfaces stay grouped"}
                 />
               </div>
             </div>
-            <div className="flex shrink-0 flex-col items-end gap-2 md:flex-row md:items-center md:gap-3">
-              <CooldownStrip />
+            <div className="flex max-w-full flex-col flex-wrap items-end justify-end gap-2 md:flex-row md:items-center md:gap-3">
+              <Suspense fallback={null}>
+                <CooldownStrip />
+              </Suspense>
               <HelpTooltip {...getTooltip("shell.commandPalette")} size={12}>
                 <button
                   onClick={() => setPaletteOpen(true)}
@@ -305,29 +297,38 @@ export default function AppLayout() {
                 <kbd className="border border-border px-1.5 py-0.5 text-[10px]">Ctrl K</kbd>
                 </button>
               </HelpTooltip>
-              <div className="hidden items-center gap-2 xl:flex">
+              <div className="flex items-center gap-2 xl:flex">
+                <ModeToggle uiMode={uiMode} setUiMode={setUiMode} compact />
                 <StatusPill label="127.0.0.1 active" tone="green" />
                 {versionInfo?.display ? <StatusPill label={versionInfo.display} tone="gold" /> : <StatusPill label={BRAND.subtitle} tone="gold" />}
-                <StatusPill label="Profiles + sessions" tone="slate" />
+                <StatusPill label={uiMode === "basic" ? "5-step operator loop" : "Advanced grouped surfaces"} tone="slate" />
               </div>
             </div>
           </header>
 
           <div className="flex-1 px-4 py-6 md:px-7 md:py-7">
-            <ViewGuideBar />
-            <Outlet />
+            <Suspense fallback={null}>
+              <ViewGuideBar />
+            </Suspense>
+            <PageErrorBoundary key={location.pathname}>
+              <Outlet />
+            </PageErrorBoundary>
           </div>
         </main>
 
-        <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onToggleSidebar={toggleSidebar} />
-        <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
-        <OnboardingWizard
-          open={onboardingOpen}
-          initial={onboardingData}
-          onClose={() => setOnboardingOpen(false)}
-          onComplete={loadOnboarding}
-        />
-        <HootMascot />
+        <Suspense fallback={null}>
+          {paletteOpen ? <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onToggleSidebar={toggleSidebar} /> : null}
+          {helpOpen ? <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} /> : null}
+          {(onboardingOpen || onboardingData) ? (
+            <OnboardingWizard
+              open={onboardingOpen}
+              initial={onboardingData}
+              onClose={() => setOnboardingOpen(false)}
+              onComplete={loadOnboarding}
+            />
+          ) : null}
+          <HootMascot />
+        </Suspense>
       </div>
       </HootFloatProvider>
       </DeckPopoutProvider>
@@ -340,6 +341,9 @@ function SidebarContent({
   collapsed,
   pathname,
   focusItems,
+  navGroups,
+  uiMode,
+  setUiMode,
   versionInfo,
   onCollapseToggle,
   showCollapseToggle,
@@ -347,12 +351,61 @@ function SidebarContent({
 }: {
   collapsed: boolean;
   pathname: string;
-  focusItems: Array<{ label: string; path: string; tipId: (typeof NAV_TOOLTIP_IDS)[keyof typeof NAV_TOOLTIP_IDS] }>;
+  focusItems: Array<{ label: string; path: string; tipId: string }>;
+  navGroups: Array<{ title: string; items: Array<{ label: string; path: string; tipId: string; icon: any }> }>;
+  uiMode: UiMode;
+  setUiMode: (mode: UiMode) => void;
   versionInfo: ReturnType<typeof useHootVersion>;
   onCollapseToggle: () => void;
   showCollapseToggle: boolean;
   onNavigate: () => void;
 }) {
+  const navigate = useNavigate();
+  const [tooltipsEnabled] = useSidebarTooltips();
+
+  const menuItems: MenuProps["items"] = useMemo(
+    () =>
+      navGroups.map((group) => ({
+        key: group.title,
+        type: "group" as const,
+        label: collapsed ? null : (
+          <span className="text-[10px] uppercase tracking-[0.18em] opacity-40">{group.title}</span>
+        ),
+        children: group.items.map((item) => {
+          const Icon = item.icon;
+          const tip = getTooltip(item.tipId);
+          const tooltipContent = (
+            <div className="max-w-[220px]">
+              <div className="text-[13px] font-semibold">{tip.title}</div>
+              <div className="mt-1 text-xs opacity-80">{tip.body}</div>
+              {tip.tips && tip.tips.length > 0 && (
+                <ul className="mt-2 list-disc space-y-0.5 pl-4 text-[11px] opacity-70">
+                  {tip.tips.slice(0, 2).map((t, i) => (
+                    <li key={i}>{t}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+          return {
+            key: item.path,
+            icon: <Icon size={18} strokeWidth={1.8} className={pathname === item.path ? "hoot-gold-text" : ""} />,
+            label: collapsed ? (
+              <span className="sr-only">{item.label}</span>
+            ) : tooltipsEnabled ? (
+              <Tooltip title={tooltipContent} placement="right" mouseEnterDelay={0.4}>
+                <span className="text-[13px]">{item.label}</span>
+              </Tooltip>
+            ) : (
+              <span className="text-[13px]">{item.label}</span>
+            ),
+            title: tooltipsEnabled ? tooltipContent : undefined,
+          };
+        }),
+      })),
+    [collapsed, navGroups, pathname, tooltipsEnabled],
+  );
+
   return (
     <>
       <div className={`border-b border-border ${collapsed ? "px-4 py-[18px]" : "px-5 py-[22px]"}`}>
@@ -364,70 +417,53 @@ function SidebarContent({
         </div>
         {!collapsed && (
           <div className="hoot-focus-card mt-[18px] rounded-[18px] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-            <div className="hoot-gold-text text-[10px] uppercase tracking-[0.18em] opacity-80">Active focus</div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="hoot-gold-text text-[10px] uppercase tracking-[0.18em] opacity-80">Active focus</div>
+              <ModeToggle uiMode={uiMode} setUiMode={setUiMode} />
+            </div>
             <div className="mt-2 text-[15px] font-semibold leading-snug">
-              Keep overview, readiness, profiles, and sessions in one operating loop.
+              {uiMode === "basic"
+                ? "Guide the operator through scan, prefab selection, launch, and live watch."
+                : "Keep overview, readiness, profiles, sessions, and deck in one operating loop."}
             </div>
             <div className="mt-2 text-xs leading-relaxed opacity-60">
-              Prioritize what is healthy, who is configured, and which sessions need action next.
+              {uiMode === "basic"
+                ? "Basic mode hides the crowded surfaces and keeps HOOT focused on decision support and prefab setup."
+                : "Advanced mode restores the full command center, telemetry, memory, and orchestration surfaces."}
             </div>
           </div>
         )}
       </div>
 
       <nav className="flex-1 overflow-auto px-2.5 pb-5 pt-4" aria-label="Sections">
-        {navGroups.map((group) => (
-          <div key={group.title} className="mb-[18px]">
-            {!collapsed && (
-              <div className="px-2.5 pb-2 text-[10px] uppercase tracking-[0.18em] opacity-40">{group.title}</div>
-            )}
-            <div className="flex flex-col gap-1">
-              {group.items.map((item) => {
-                const Icon = item.icon;
-                const active = pathname === item.path;
-                const tip = getTooltip(item.tipId);
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={onNavigate}
-                    aria-current={active ? "page" : undefined}
-                    title={tip.body}
-                    className={`flex items-center gap-3 rounded-2xl no-underline ${
-                      collapsed ? "justify-center p-3" : "px-3.5 py-3"
-                    } ${active ? "hoot-active-item text-foreground" : "border border-transparent text-foreground/80 hover:bg-foreground/[0.03]"}`}
-                  >
-                    <Icon size={18} strokeWidth={1.8} className={active ? "hoot-gold-text" : undefined} />
-                    {!collapsed && (
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <div className={`text-[13px] ${active ? "font-semibold" : "font-medium"}`}>{item.label}</div>
-                          <span onClick={(e) => e.preventDefault()} className="inline-flex">
-                            <HelpTooltip {...tip} size={11} />
-                          </span>
-                        </div>
-                        <div className="truncate text-[11px] opacity-50">{tip.body}</div>
-                      </div>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+        <AntMenu
+          mode="inline"
+          inlineCollapsed={collapsed}
+          selectedKeys={[pathname]}
+          items={menuItems}
+          onClick={({ key }) => {
+            navigate(key);
+            onNavigate();
+          }}
+          className="!border-none bg-transparent"
+        />
 
         {!collapsed && (
-          <div className="hoot-card-soft mt-2 rounded-[18px] p-3.5">
+          <div className="hoot-card-soft mt-6 rounded-[18px] p-3.5">
             <div className="mb-2.5 text-[10px] uppercase tracking-[0.18em] opacity-45">Core views</div>
             <div className="grid gap-2">
               {focusItems.map((item, index) => {
                 const active = pathname === item.path;
                 const tip = getTooltip(item.tipId);
                 return (
-                  <Link
+                  <a
                     key={item.path}
-                    to={item.path}
-                    onClick={onNavigate}
+                    href={item.path}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate(item.path);
+                      onNavigate();
+                    }}
                     title={tip.body}
                     className={`flex items-center justify-between gap-3 py-2.5 no-underline ${
                       index === 0 ? "" : "border-t border-border"
@@ -438,7 +474,7 @@ function SidebarContent({
                       <div className="mt-0.5 text-[11px] opacity-50">{tip.tips?.[0] || tip.body}</div>
                     </div>
                     <Compass size={15} className={active ? "hoot-gold-text" : "opacity-40"} />
-                  </Link>
+                  </a>
                 );
               })}
             </div>
@@ -512,6 +548,23 @@ function VersionFooter({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function ModeToggle({ uiMode, setUiMode, compact = false }: { uiMode: UiMode; setUiMode: (mode: UiMode) => void; compact?: boolean }) {
+  return (
+    <div className={`flex items-center rounded-full border border-border bg-background/65 p-1 ${compact ? "" : "self-start"}`}>
+      {(["basic", "advanced"] as const).map((mode) => (
+        <button
+          key={mode}
+          type="button"
+          onClick={() => setUiMode(mode)}
+          className={`rounded-full px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] transition ${uiMode === mode ? "hoot-gold-chip font-semibold" : "text-muted-foreground"}`}
+        >
+          {mode}
+        </button>
+      ))}
     </div>
   );
 }

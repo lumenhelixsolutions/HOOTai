@@ -526,15 +526,15 @@ Success bar:
 ## Suggested File/Code Strategy
 
 Primary target:
-- `D:/projects/Hoot/index.html`
+- `D:/projects/agentdock/index.html`
 
 Supporting references to keep aligned:
-- `D:/projects/Hoot/README.md`
-- `D:/projects/Hoot/AGENTS.md`
-- `D:/projects/Hoot/tests/server.test.js`
-- `D:/projects/Hoot/tests/profiles.test.js`
-- `D:/projects/Hoot/tests/scanner.test.js`
-- `D:/projects/Hoot/tests/memory.test.js`
+- `D:/projects/agentdock/README.md`
+- `D:/projects/agentdock/AGENTS.md`
+- `D:/projects/agentdock/tests/server.test.js`
+- `D:/projects/agentdock/tests/profiles.test.js`
+- `D:/projects/agentdock/tests/scanner.test.js`
+- `D:/projects/agentdock/tests/memory.test.js`
 
 Implementation guidance:
 - do not rewrite backend routes unless required by UI gaps

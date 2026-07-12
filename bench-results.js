@@ -9,6 +9,7 @@ const { spawn } = require('child_process');
 const DEFAULT_CSV = path.join(__dirname, 'state', 'bench-results.csv');
 const BENCH_SCRIPT = path.join(__dirname, 'scripts', 'bench-local-models.mjs');
 const LLAMACPP_BENCH_SCRIPT = path.join(__dirname, 'scripts', 'bench-llamacpp.mjs');
+const { resolveOllamaBaseUrl } = require('./ollama-url');
 
 const BENCH_CSV_COLUMNS = ['model', 'status', 'latency_ms', 'tokens_per_sec'];
 const BENCH_VALID_STATUSES = new Set(['pass', 'weak', 'missing', 'error', 'unknown']);
@@ -168,10 +169,15 @@ function applyBenchToProfile(evalResult, profile, benchData) {
   };
 }
 
-function runBenchScript(models = [], csvPath = DEFAULT_CSV) {
+function runBenchScript(models = [], csvPath = DEFAULT_CSV, options = {}) {
   return new Promise((resolve, reject) => {
     const args = [BENCH_SCRIPT, ...models, '--out', csvPath];
-    const child = spawn(process.execPath, args, { cwd: __dirname, stdio: ['ignore', 'pipe', 'pipe'] });
+    const ollamaHost = resolveOllamaBaseUrl(options.ollamaHost || process.env.OLLAMA_HOST);
+    const child = spawn(process.execPath, args, {
+      cwd: __dirname,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, OLLAMA_HOST: ollamaHost },
+    });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (d) => { stdout += d; });

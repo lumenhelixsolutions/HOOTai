@@ -13,6 +13,10 @@ const VIEW_KEYS: Record<string, string[]> = {
   "/settings": ["vaultKeyCount", "llamacppEnabled"],
   "/deck": ["providerMatrix"],
   "/activity": ["activityDays"],
+  "/bench": ["benchModelCount", "benchPassCount", "benchUpdatedAt"],
+  "/approvals": ["approvalCount", "phase4Ready", "approvalRecentOk"],
+  "/portfolio": ["portfolioMvpCount", "portfolioBrainCount", "portfolioGitIssues", "activeProjectName"],
+  "/pipeline": ["milestoneCount", "activeProjectName"],
 };
 
 const SHARED_KEYS = ["providerMatrix", "tokenBurnRisk", "tokenBurnSaved"];

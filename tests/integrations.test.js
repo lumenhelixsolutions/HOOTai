@@ -24,9 +24,11 @@ describe('integrations catalog files', () => {
     assert.strictEqual(fsHoot.read_only, true);
   });
 
-  it('user-settings.json has llamacpp block', () => {
+  it('user-settings.json has local inference blocks', () => {
     const file = path.join(ROOT, 'state', 'user-settings.json');
     const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+    assert.ok(data.localInference?.lmstudio);
+    assert.ok('port' in data.localInference.lmstudio);
     assert.ok(data.localInference?.llamacpp);
     assert.ok('port' in data.localInference.llamacpp);
   });
@@ -67,6 +69,7 @@ describe('integrations API', () => {
     const res = await get('/api/settings');
     assert.strictEqual(res.status, 200);
     const json = JSON.parse(res.body);
+    assert.ok(json.settings?.localInference?.lmstudio);
     assert.ok(json.settings?.localInference?.llamacpp);
   });
 

@@ -1,0 +1,3 @@
+{"type":"token_count","timestamp":"2026-06-10T10:00:00.000Z","input_tokens":100000,"output_tokens":5000,"cached_input_tokens":80000,"reasoning_output_tokens":1000,"thread_id":"t1","prompt":"Support-monitor automation for client dashboard"}
+{"type":"token_count","timestamp":"2026-06-10T14:30:00.000Z","input_tokens":200000,"output_tokens":8000,"cached_input_tokens":150000,"reasoning_output_tokens":2000,"thread_id":"t2","prompt":"browser computer-use workflow"}
+{"type":"token_count","timestamp":"2026-06-11T09:15:00.000Z","input_tokens":50000,"output_tokens":2000,"cached_input_tokens":40000,"thread_id":"t3","prompt":"client deck spreadsheet model planning"}

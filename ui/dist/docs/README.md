@@ -23,7 +23,7 @@
 
 **Unchanged (on purpose):** npm package name `agentdock`, `AGENTDOCK_*` environment variables, `/api/*` routes, and launch profile internals. Existing scripts and env configs keep working.
 
-**Portfolio path:** store and work on this project in `D:/projects/Hoot/` (not `agentdock/`). Git remote remains `lumenhelixsolutions/agentDOCK`.
+**Portfolio path:** store and work on this project in `D:/projects/HootAi/` (not `agentdock/`). Git remote remains `lumenhelixsolutions/agentDOCK`.
 
 If you have bookmarks or docs pointing at “AgentDock”, read them as HOOT — same local engine, new identity.
 
@@ -69,11 +69,17 @@ If you have bookmarks or docs pointing at “AgentDock”, read them as HOOT —
 No npm dependencies required. Just clone and run:
 
 ```bash
-cd agentdock
+cd D:/projects/Hoot
 node server.js
 ```
 
-Or on Windows, double-click `start-agentdock.bat`.
+Or on Windows:
+
+```powershell
+pwsh D:\projects\scripts\start-hoot.ps1
+```
+
+Double-click `start-hoot.bat`. **Do not** run from `D:\projects\agentdock` (legacy mirror).
 
 Open `http://127.0.0.1:7777` in your browser.
 

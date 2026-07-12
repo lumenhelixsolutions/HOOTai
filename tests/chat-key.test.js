@@ -46,8 +46,8 @@ describe('resolveChatApiKey', () => {
 
   it('falls back to trimmed client key when vault empty', () => {
     assert.strictEqual(
-      chat.resolveChatApiKey({ apiKey: '  client-key  ', effectiveProvider: 'gemini' }),
-      'client-key',
+      chat.resolveChatApiKey({ apiKey: '  client-key-ok12  ', effectiveProvider: 'gemini' }),
+      'client-key-ok12',
     );
   });
 });

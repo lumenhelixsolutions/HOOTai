@@ -183,7 +183,7 @@ function keyAvailable(name) {
   return { available: false, source: 'missing' };
 }
 
-const LOCAL_PROVIDERS = new Set(['ollama', 'llamacpp', 'coach-local']);
+const LOCAL_PROVIDERS = new Set(['ollama', 'llamacpp', 'lmstudio', 'lm-studio', 'coach-local']);
 
 function isLocalProvider(provider) {
   return LOCAL_PROVIDERS.has(String(provider || '').toLowerCase());
@@ -191,7 +191,7 @@ function isLocalProvider(provider) {
 
 function resolveProviderKey(provider) {
   const p = String(provider || 'gemini').toLowerCase();
-  if (p === 'ollama' || p === 'llamacpp') return '__local__';
+  if (p === 'ollama' || p === 'llamacpp' || p === 'lmstudio' || p === 'lm-studio') return '__local__';
   const map = {
     gemini: ['GEMINI_API_KEY', 'GOOGLE_API_KEY'],
     openai: ['OPENAI_API_KEY'],

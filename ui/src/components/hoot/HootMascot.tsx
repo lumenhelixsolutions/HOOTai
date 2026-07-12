@@ -1,11 +1,14 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { lazy, Suspense, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCoach } from "@/context/CoachContext";
-import CoachThread from "@/components/coach/CoachThread";
 import HootOwl from "./HootOwl";
 import { BRAND } from "@/lib/brand";
 import { useCoachCommandExecute } from "@/lib/useCoachCommandExecute";
-import { Pin, PinOff, X, ChevronRight, Maximize2, Minimize2, GripHorizontal } from "lucide-react";
+import { Pin, PinOff, PictureInPicture2, X, ChevronRight, Maximize2, Minimize2, GripHorizontal } from "lucide-react";
+import { HOOT_ACTIONS } from "@/lib/hoot-control";
+import { useHootFloat } from "./hoot-float";
+
+const CoachThread = lazy(() => import("@/components/coach/CoachThread"));
 
 const SESSION_ID = "hoot-" + Math.random().toString(36).slice(2, 8);
 const POS_KEY = "hoot_popout_pos";
@@ -39,6 +42,7 @@ function savePopoutPos(pos: PopoutPos) {
 export default function HootMascot() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { pipWindow: owlFloatOpen, toggle: toggleOwlFloat } = useHootFloat();
   const {
     topHint, viewGuide, dismissHint, coachOpen, setCoachOpen,
     consumeChatPrompt, emitCoachAction, queueChatPrompt,
@@ -170,6 +174,23 @@ export default function HootMascot() {
     minWidth: 0,
   };
 
+  const quickActions = useMemo(() => {
+    if (location.pathname === "/builder") {
+      return [
+        { label: "Local", target: HOOT_ACTIONS.PREFAB_LOCAL },
+        { label: "Cloud", target: HOOT_ACTIONS.PREFAB_CLOUD },
+        { label: "Hybrid", target: HOOT_ACTIONS.PREFAB_HYBRID },
+        { label: "Advanced", target: HOOT_ACTIONS.PREFAB_REVIEW },
+      ];
+    }
+    return [
+      { label: "Basic flow", target: HOOT_ACTIONS.OPEN_BASIC_WORKFLOW },
+      { label: "Advanced", target: HOOT_ACTIONS.OPEN_ADVANCED_WORKFLOW },
+      { label: "Builder", target: "/builder", type: "navigate" as const },
+      { label: "Onboarding", target: HOOT_ACTIONS.OPEN_ONBOARDING },
+    ];
+  }, [location.pathname]);
+
   return (
     <div
       ref={containerRef}
@@ -239,6 +260,21 @@ export default function HootMascot() {
             {hootError?.fix && (
               <p style={{ margin: "0 0 10px", fontSize: 11, color: "#fbbf24", lineHeight: 1.4 }}>{hootError.fix}</p>
             )}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+              {quickActions.map((action) => (
+                <button
+                  key={action.label}
+                  type="button"
+                  onClick={() => runAction(action.type === "navigate" ? action : { type: "action", target: action.target })}
+                  style={{
+                    padding: "5px 10px", borderRadius: 999, border: `1px solid ${tone.border}`,
+                    background: "rgba(255,255,255,0.04)", color: "#f3d19a", cursor: "pointer", fontSize: 10,
+                  }}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {(hootError ? [
                 { label: "Help me fix", type: "chat" as const, prompt: `Fix this ${hootError.source} error: ${hootError.message.slice(0, 200)}` },
@@ -316,12 +352,14 @@ export default function HootMascot() {
               </button>
             </div>
           </div>
-          <CoachThread sessionId={SESSION_ID} pendingPrompt={composerPrompt} onPromptConsumed={() => setComposerPrompt(null)} onCommand={executeCmd} />
+          <Suspense fallback={<div style={{ flex: 1, display: "grid", placeItems: "center", color: "#8f8f8f", fontSize: 12 }}>Loading coach…</div>}>
+            <CoachThread sessionId={SESSION_ID} pendingPrompt={composerPrompt} onPromptConsumed={() => setComposerPrompt(null)} onCommand={executeCmd} />
+          </Suspense>
         </div>
       )}
 
-      {!coachOpen && (
-        <div style={{ pointerEvents: "auto" }}>
+      {!coachOpen && !owlFloatOpen && (
+        <div style={{ pointerEvents: "auto", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
           <HootOwl
             mood={hootMood}
             moodContext={hootMoodContext}
@@ -330,6 +368,51 @@ export default function HootMascot() {
             statusLine={hootStatus}
             showWordmark={false}
           />
+          <button
+            type="button"
+            title="Float transparent ASCII owl above all windows"
+            onClick={() => void toggleOwlFloat()}
+            style={{
+              padding: "5px 10px",
+              borderRadius: 8,
+              border: "1px solid rgba(255,176,66,0.25)",
+              background: "rgba(0,0,0,0.35)",
+              color: "#ffb042",
+              cursor: "pointer",
+              fontSize: 10,
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+            }}
+          >
+            <PictureInPicture2 size={12} />
+            Float owl
+          </button>
+        </div>
+      )}
+      {!coachOpen && owlFloatOpen && (
+        <div
+          style={{
+            pointerEvents: "auto",
+            padding: "8px 12px",
+            borderRadius: 10,
+            border: "1px solid rgba(255,176,66,0.2)",
+            background: "rgba(0,0,0,0.4)",
+            fontSize: 10,
+            color: "#aaa",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <span style={{ color: "#ffb042" }}>Owl floating</span>
+          <button
+            type="button"
+            onClick={() => void toggleOwlFloat()}
+            style={{ background: "none", border: "none", color: "#dadada", cursor: "pointer", fontSize: 10 }}
+          >
+            Dock
+          </button>
         </div>
       )}
       <style>{`@keyframes hootPop { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }`}</style>

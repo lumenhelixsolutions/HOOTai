@@ -1,26 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, ClipboardCopy, Flame, FolderKanban, PlayCircle, Radar, Scan, Sparkles, Wrench } from "lucide-react";
+import { ClipboardCopy, Flame, PlayCircle, Radar, Scan, Sparkles, Wrench } from "lucide-react";
+import { Button } from "antd";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { useCoach } from "@/context/CoachContext";
 import { BRAND } from "@/lib/brand";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { WidgetSkeleton, statusTone } from "@/components/dashboard/primitives";
+import { asScanArray, normalizeLoadedModels } from "@/lib/scan-normalize";
 import {
   ActiveProjectWidget,
-  EvidenceResearchWidget,
   ExecutiveSummaryWidget,
   HeroReadinessWidget,
   MissionFlowWidget,
   NextActionsWidget,
-  QuickLinksWidget,
-  RecentSessionsWidget,
-  SuggestedProfilesWidget,
   TokenBurnWidget,
   type Readiness,
   type SummaryItem,
 } from "@/components/dashboard/widgets";
-import ProviderMatrixWidget from "@/components/hybrid/ProviderMatrixWidget";
 
 
 export default function Dashboard() {
@@ -32,7 +29,7 @@ export default function Dashboard() {
   const [handoffBusy, setHandoffBusy] = useState(false);
 
   const data = useDashboardData(() => toast.showToast("Failed to load dashboard data", "error"));
-  const { profiles, projects, activeProjectData, scan, usage, portfolio, research, memory, tokenBurn, loading, failedSources, reload } = data;
+  const { profiles, projects, activeProjectData, scan, portfolio, memory, tokenBurn, loading, failedSources, reload } = data;
 
   const activeProject = useMemo(() => {
     const fromActive = activeProjectData?.project;
@@ -50,16 +47,6 @@ export default function Dashboard() {
     return counts;
   }, [profiles]);
 
-  const recentOutcomes = useMemo(() => (usage?.outcomes || []).slice(-5).reverse(), [usage]);
-
-  const evidenceBlocks = useMemo(
-    () =>
-      memory
-        .split(/\n(?=## Evidence:)/g)
-        .filter((block) => block.includes("## Evidence:"))
-        .slice(0, 3),
-    [memory],
-  );
 
   const activeIssues = useMemo(() => {
     if (!activeProject) return [];
@@ -106,7 +93,7 @@ export default function Dashboard() {
         window.dispatchEvent(new CustomEvent("hoot-open-onboarding"));
       }
     });
-  });
+  }, [registerActionHandler]);
 
   const generateHandoff = async () => {
     setHandoffBusy(true);
@@ -157,9 +144,9 @@ export default function Dashboard() {
   }, [scan, activeProject]);
 
   const executiveSummary = useMemo<SummaryItem[]>(() => {
-    const coders = scan?.coders || [];
+    const coders = asScanArray(scan?.coders);
     const installedCoders = coders.filter((coder: any) => coder.detection?.present).length;
-    const loadedModels = (scan?.ollama?.loaded_models || []).length;
+    const loadedModels = normalizeLoadedModels(scan).length;
     const cleanProjects = projects.filter((project: any) => project.git?.clean).length;
     const radarTotal = Number(pageContext.agentRadarTotal) || 0;
     const radarExt = Number(pageContext.agentRadarExternal) || 0;
@@ -193,8 +180,8 @@ export default function Dashboard() {
   const recommendedActions = useMemo(() => {
     const actions: Array<{ title: string; body: string; to: string; icon: any }> = [];
     if (!scan) actions.push({ title: "Run the first scan", body: "Detect local agents, models, and machine capability before launch.", to: "/scan", icon: Scan });
-    if (!activeProject) actions.push({ title: "Choose an active project", body: "HOOT works best when the home screen, memory, and launches are tied to a repo.", to: "/launch", icon: FolderKanban });
-    if (activeProject && !activeProject.hasAgentsMd) actions.push({ title: "Add AGENTS.md context", body: "Document architecture and workflow so the first autonomous run is grounded.", to: "/memory", icon: BookOpen });
+    if (!activeProject) actions.push({ title: "Choose an active project", body: "HOOT works best when build, launch, and memory stay tied to a repo.", to: "/launch", icon: PlayCircle });
+    if (activeProject && !activeProject.hasAgentsMd) actions.push({ title: "Add AGENTS.md context", body: "Document architecture and workflow so the next autonomous run is grounded.", to: "/settings", icon: Wrench });
     if (readiness.state !== "READY") actions.push({ title: "Resolve readiness gaps", body: "Review scan results and settings to clear blockers or missing pieces.", to: "/settings", icon: Wrench });
     if (tokenBurn?.risk?.level === "high") {
       actions.unshift({
@@ -213,25 +200,10 @@ export default function Dashboard() {
       });
     }
     if (actions.length === 0)
-      actions.push({ title: "Open Launch Center", body: "Your system looks ready. Review profiles and continue with a guided launch.", to: "/launch", icon: PlayCircle });
+      actions.push({ title: "Move into Launch Review", body: "Your system looks ready. Review the staged path and continue with a guided launch.", to: "/launch", icon: PlayCircle });
     return actions.slice(0, 4);
   }, [scan, activeProject, readiness.state, pageContext.agentRadarExternal, tokenBurn?.risk?.level]);
 
-  const suggestedProfiles = useMemo(() => {
-    return profiles
-      .slice()
-      .sort((a: any, b: any) => {
-        const score = (profile: any) => {
-          let value = 0;
-          if ((profile.state || profile.meta?.status) === "READY") value += 5;
-          if (profile.ce_compatible) value += 2;
-          if ((profile.meta?.mode || "").includes("local")) value += 1;
-          return value;
-        };
-        return score(b) - score(a);
-      })
-      .slice(0, 3);
-  }, [profiles]);
 
   const handleProjectChange = async (path: string) => {
     setSwitchingProject(true);
@@ -291,7 +263,7 @@ export default function Dashboard() {
         <MissionFlowWidget
           scan={scan}
           activeProject={activeProject}
-          hasContext={!!activeProject?.hasAgentsMd || evidenceBlocks.length > 0}
+          hasContext={!!activeProject?.hasAgentsMd || Boolean(memory.trim())}
           hasProfiles={profiles.length > 0}
         />
       </div>
@@ -304,30 +276,31 @@ export default function Dashboard() {
       />
 
       <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={handoffBusy} onClick={generateHandoff} className="hoot-gold-chip inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold">
-          <ClipboardCopy size={14} /> {handoffBusy ? "Generating…" : "Generate handoff"}
-        </button>
-        <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("hoot-open-onboarding"))} className="inline-flex items-center gap-2 rounded-xl border border-border px-3.5 py-2 text-xs opacity-80 hover:opacity-100">
-          <Sparkles size={14} /> Workspace setup
-        </button>
+        <Button
+          type="primary"
+          size="small"
+          loading={handoffBusy}
+          onClick={generateHandoff}
+          icon={<ClipboardCopy size={14} />}
+        >
+          {handoffBusy ? "Generating…" : "Generate handoff"}
+        </Button>
+        <Button
+          size="small"
+          onClick={() => window.dispatchEvent(new CustomEvent("hoot-open-onboarding"))}
+          icon={<Sparkles size={14} />}
+        >
+          Workspace setup
+        </Button>
       </div>
 
-      <ProviderMatrixWidget
-        onRegistryChange={(matrixLine) => setPageContext({ providerMatrix: matrixLine })}
-      />
 
       <div className="grid gap-[18px] lg:grid-cols-2">
         <NextActionsWidget actions={recommendedActions} />
         <ExecutiveSummaryWidget summary={executiveSummary} />
       </div>
 
-      <div className="grid gap-[18px] md:grid-cols-2 xl:grid-cols-3">
-        <SuggestedProfilesWidget profiles={suggestedProfiles} failed={failedSources.has("profiles")} onRetry={reload} />
-        <RecentSessionsWidget outcomes={recentOutcomes} failed={failedSources.has("usage")} onRetry={reload} />
-        <EvidenceResearchWidget evidenceBlocks={evidenceBlocks} research={research} />
-      </div>
 
-      <QuickLinksWidget profileCount={profiles.length} />
     </div>
   );
 }

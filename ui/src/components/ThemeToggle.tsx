@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import { getTheme, onThemeChange, setTheme, type Theme } from "@/lib/theme";
+import { tooltipTitle } from "@/lib/tooltips";
 
 /**
  * Dark/light theme toggle. Dark is HOOT's default identity; light is the
@@ -19,7 +20,7 @@ export default function ThemeToggle({ collapsed = false }: { collapsed?: boolean
     <button
       onClick={() => setTheme(next)}
       aria-label={`Switch to ${next} theme`}
-      title={`Switch to ${next} theme`}
+      title={`${tooltipTitle("shell.theme")} · Switch to ${next}`}
       className={`flex w-full items-center gap-2 border-t border-border bg-transparent px-4 py-3 text-muted-foreground ${collapsed ? "justify-center" : "justify-end"}`}
     >
       {!collapsed && (

@@ -3,7 +3,7 @@
 Timestamp: 2026-06-12T05:10:00Z
 Session-End: true
 Plan-Version: 2.3.0
-Milestone-Version: 2026-06-11.1
+Milestone-Version: 2026-06-15.1
 Canonical-For-Project: true
 
 ## Last Verified
@@ -26,8 +26,7 @@ Canonical-For-Project: true
 
 ## What Is Unverified
 
-- Full UI dist rebuild after coach approval changes
-- 10 launch-approval flow log (Phase 4 entry)
+- Full UI dist rebuild after pipeline + approvals pages
 
 ## Blockers
 
@@ -35,4 +34,6 @@ Canonical-For-Project: true
 
 ## Next Best Move
 
-- Commit coach approval + coach-graph; push; begin Phase 4 LangGraph when 10 flows logged
+- **M14:** `coach-graph/server.py` HTTP wrapper for Coach UI
+- **M5:** ECC `agent-sort` hygiene across active repos
+- Portfolio plan: `D:/projects/MILESTONES.md` v2 approved 2026-06-15

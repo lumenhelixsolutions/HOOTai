@@ -13,11 +13,11 @@
 | 2 | **cineforge** | python | ✅ | 1+ | ❌ **NONE** | ✅ clean | ❌ |
 | 3 | **ecc** | node | ✅ | ~2,010 | ✅ `affaan-m/ECC` | ❌ dirty | ✅ |
 | 4 | **lookBOOK** | generic | ⚠️ init, **0 commits** | ❌ **NONE** | ❌ 5 untracked | ❌ |
-| 5 | **NOTEtoolsLM-v2** | node | ✅ | 3+ | ✅ `lumenhelixsolutions/NOTEtoolsLM` | ✅ clean | ✅ |
+| 5 | **NOTEtoolsLM-v2** | node | ✅ | 3+ | ✅ `lumenhelixlab/NOTEtoolsLM` | ✅ clean | ✅ |
 | 6 | **plinepro_kimi** | node | ❌ **NO GIT** | N/A | N/A | N/A | ❌ |
 | 7 | **plpv2** | node | ❌ **NO GIT** | N/A | N/A | N/A | ❌ |
 | 8 | **PromptPack** | node | ✅ | 3 | ❌ **NONE** | ❌ 11 uncommitted | ❌ |
-| 9 | **racegps** | node | ✅ | 27 | ✅ `lumenhelixsolutions/raceGPS` | ❌ 1 uncommitted | ❌ |
+| 9 | **racegps** | node | ✅ | 27 | ✅ `lumenhelixlab/raceGPS` | ❌ 1 uncommitted | ❌ |
 | 10 | **scripts** | python | ✅ | 1+ | ❌ **NONE** | ❌ 5 untracked | ❌ |
 
 **Score:** 3 of 10 projects have a working remote. 6 of 10 have AGENTS.md. 2 projects have no git at all.
@@ -48,7 +48,7 @@ Current violations:
 
 ### agentdock (Current Focus — Just Shipped Phase 2)
 **Status:** v2.0 with React UI, 77 tests, AI Coach, Stack Builder.  
-**Next:** Create GitHub repo `lumenhelixsolutions/agentdock`, push, add AGENTS.md to all downstream projects.
+**Next:** Create GitHub repo `lumenhelixlab/agentdock`, push, add AGENTS.md to all downstream projects.
 
 ### lookBOOK (Active Project — At Risk)
 **Status:** Alpha/MVP, animation compiler. Zero commits. No remote. No AGENTS.md.  
@@ -103,7 +103,7 @@ Run the existing script:
 cd D:\projects\scripts
 .\create-github-repos.ps1
 ```
-This should create remotes for `agentdock`, `cineforge`, `lookBOOK`, `PromptPack`, and `scripts` under `lumenhelixsolutions/`.
+This should create remotes for `agentdock`, `cineforge`, `lookBOOK`, `PromptPack`, and `scripts` under `lumenhelixlab/`.
 
 ### Step 3: Initialize PipelineLM Pro (10 min)
 ```powershell

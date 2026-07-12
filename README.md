@@ -9,9 +9,9 @@
 <p align="center">Scan your machine, discover projects, evaluate agent stacks, launch safely, and remember what works — all locally.</p>
 
 <p align="center">
-  <a href="https://lumenhelixsolutions.github.io/HOOTai/">Launch Page</a>
+  <a href="https://lumenhelixlab.github.io/HOOTai/">Launch Page</a>
   <span> · </span>
-  <a href="https://github.com/lumenhelixsolutions/HOOTai">GitHub</a>
+  <a href="https://github.com/LumenHelixLab/HOOTai">GitHub</a>
   <span> · </span>
   <a href="https://lumenhelix.com">LumenHelix</a>
 </p>
@@ -31,7 +31,7 @@ HOOTai is the local AI command center for project-aware agent stacks. It scans y
 ### macOS / Linux
 
 ```bash
-git clone https://github.com/lumenhelixsolutions/HOOTai.git
+git clone https://github.com/LumenHelixLab/HOOTai.git
 cd HOOTai
 npm install
 npm test
@@ -41,7 +41,7 @@ node server.js
 ### Windows (PowerShell)
 
 ```powershell
-git clone https://github.com/lumenhelixsolutions/HOOTai.git
+git clone https://github.com/LumenHelixLab/HOOTai.git
 Set-Location HOOTai
 npm install
 npm test
@@ -51,7 +51,7 @@ node server.js
 ### Windows (Git Bash / WSL)
 
 ```bash
-git clone https://github.com/lumenhelixsolutions/HOOTai.git
+git clone https://github.com/LumenHelixLab/HOOTai.git
 cd HOOTai
 npm install
 npm test

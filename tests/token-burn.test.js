@@ -42,7 +42,7 @@ describe('token-burn', () => {
       settings: { tokenEfficiency: { rtkRecommended: true } },
     });
     assert.strictEqual(report.risk.level, 'high');
-    assert.ok(report.recommendations.some((r) => r.id === 'install-rtk'));
+    assert.ok(report.recommendations.some((r) => r.id === 'ensure-hoot-rtk'));
     assert.strictEqual(report.rtk_profiles.length, 1);
   });
 

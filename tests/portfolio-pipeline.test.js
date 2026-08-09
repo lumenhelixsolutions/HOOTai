@@ -16,6 +16,11 @@ const {
 const HOOT_ROOT = path.join(__dirname, '..');
 const PORTFOLIO_ROOT = path.dirname(HOOT_ROOT);
 
+// Cross-repo bridge checks read sibling checkouts (lookBOOK, cineforge) from the
+// filesystem, so they only pass on a full portfolio machine — never on a fresh
+// clone. They are skipped unless HOOT_INTEGRATION_TESTS=1 is set.
+const INTEGRATION = Boolean(process.env.HOOT_INTEGRATION_TESTS);
+
 describe('portfolio-pipeline', () => {
   it('parseMilestones reads milestone table', () => {
     const md = `Milestone-Version: 2026-06-11.1
@@ -56,7 +61,8 @@ describe('portfolio-pipeline', () => {
     assert.ok(report.active_project);
   });
 
-  it('checkVisualStoryBridge reports module and script readiness', () => {
+  // Integration-only: needs sibling lookBOOK/cineforge modules + e2e script on disk.
+  it('checkVisualStoryBridge reports module and script readiness', { skip: !INTEGRATION }, () => {
     const health = checkVisualStoryBridge(PORTFOLIO_ROOT);
     assert.strictEqual(health.id, 'lookbook-cineforge');
     assert.strictEqual(health.modules_ready, true);
@@ -96,7 +102,8 @@ describe('portfolio-pipeline', () => {
     assert.strictEqual(health.modules_ready, true);
   });
 
-  it('checkDirectorGraphSidecar reports module readiness', () => {
+  // Integration-only: needs the sibling lookBOOK director-graph sidecar spec on disk.
+  it('checkDirectorGraphSidecar reports module readiness', { skip: !INTEGRATION }, () => {
     const health = checkDirectorGraphSidecar(PORTFOLIO_ROOT);
     assert.strictEqual(health.id, 'lookbook-director-graph');
     assert.strictEqual(health.modules_ready, true);

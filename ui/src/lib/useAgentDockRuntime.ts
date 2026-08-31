@@ -4,6 +4,7 @@ import { useExternalStoreRuntime } from "@assistant-ui/react";
 import { api } from "@/lib/api";
 import { slimCoachPageContext } from "@/lib/coach-context-slim";
 import { wantsLiveCoachContext } from "@/lib/coach-context-intent";
+import { useExecutiveControlOptional } from "@/context/ExecutiveControlContext";
 
 export type AgentDockChatMessage = {
   id: string;
@@ -55,6 +56,7 @@ export function useAgentDockRuntime(
   const [isRunning, setIsRunning] = useState(false);
   const idRef = useRef(0);
   const nextId = () => `msg-${++idRef.current}`;
+  const executive = useExecutiveControlOptional();
 
   const sendText = useCallback(
     async (text: string) => {
@@ -78,15 +80,33 @@ export function useAgentDockRuntime(
           pageContext: slimContext,
           contextMode,
         });
+        // Merge JSON commands + any tool-loop HITL proposals into one approve list
+        const commands = Array.isArray(res.commands) ? res.commands : [];
+        const fromTools = Array.isArray(res.toolRuns)
+          ? res.toolRuns
+              .filter((t: { proposed?: boolean; command?: Record<string, unknown> }) => t?.proposed && t?.command)
+              .map((t: { command: Record<string, unknown> }) => t.command)
+          : [];
+        const merged = [...commands];
+        for (const c of fromTools) {
+          if (!c?.type) continue;
+          if (!merged.some((m) => m.type === c.type && m.route === c.route && m.profileId === c.profileId && m.target === c.target)) {
+            merged.push(c);
+          }
+        }
+        // Global HITL queue — survives navigation away from coach
+        if (merged.length && executive) {
+          executive.enqueue(merged, "coach-chat");
+        }
         const aiMsg: AgentDockChatMessage = {
           id: nextId(),
           role: "assistant",
           text: res.text || "...",
-          commands: res.commands,
+          commands: merged,
           source: res.source,
         };
         setMessages((prev) => [...prev, aiMsg]);
-        if (res.commands?.length) onCommands?.(res.commands);
+        if (merged.length) onCommands?.(merged);
       } catch (e: unknown) {
         const err = e instanceof Error ? e.message : "Chat failed";
         setMessages((prev) => [...prev, { id: nextId(), role: "assistant", text: `⚠️ ${err}`, source: "error" }]);
@@ -94,7 +114,7 @@ export function useAgentDockRuntime(
         setIsRunning(false);
       }
     },
-    [sessionId, isRunning, onCommands, coachContext?.coachView, coachContext?.pageContext],
+    [sessionId, isRunning, onCommands, coachContext?.coachView, coachContext?.pageContext, executive],
   );
 
   const onNew = useCallback(

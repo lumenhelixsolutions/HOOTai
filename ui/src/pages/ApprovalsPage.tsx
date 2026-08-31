@@ -1,11 +1,20 @@
-import { useCallback, useState } from "react";
-import { Play, RefreshCw, ShieldCheck } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Play, RefreshCw, ShieldCheck, Workflow } from "lucide-react";
 import { api } from "@/lib/api";
 import { useCoach } from "@/context/CoachContext";
+import { useExecutiveControlOptional } from "@/context/ExecutiveControlContext";
 import type { CoachApprovalEntry, CoachApprovalsPayload } from "@/lib/coach-approvals-types";
 import { useSessionPoll } from "@/hooks/useSessionPoll";
 
 const PHASE4_TARGET = 10;
+
+type WorkflowCard = {
+  id: string;
+  title: string;
+  description: string;
+  tags: string[];
+  stepCount: number;
+};
 
 function Section({ title, caption, children }: { title: string; caption?: string; children: React.ReactNode }) {
   return (
@@ -43,17 +52,22 @@ export default function ApprovalsPage() {
   const [graphRunning, setGraphRunning] = useState(false);
   const [graphStatus, setGraphStatus] = useState<string | null>(null);
   const [sidecarOnline, setSidecarOnline] = useState<boolean | null>(null);
+  const [workflows, setWorkflows] = useState<WorkflowCard[]>([]);
+  const [wfBusy, setWfBusy] = useState<string | null>(null);
   const { setPageContext } = useCoach();
+  const executive = useExecutiveControlOptional();
 
   const load = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [payload, status] = await Promise.all([
-        api.getCoachApprovals(50),
+      const [payload, status, wf] = await Promise.all([
+        api.getCoachApprovals(80),
         api.getCoachGraphStatus().catch(() => null),
+        api.getCoachWorkflows().catch(() => null),
       ]);
       setData(payload);
       setSidecarOnline(status?.sidecar?.online ?? false);
+      if (wf?.workflows) setWorkflows(wf.workflows);
       setPageContext({
         approvalCount: payload.count,
         phase4Ready: payload.phase4Ready,
@@ -65,6 +79,20 @@ export default function ApprovalsPage() {
       setRefreshing(false);
     }
   }, [setPageContext]);
+
+  const runWorkflow = useCallback(
+    async (id: string) => {
+      if (!executive) return;
+      setWfBusy(id);
+      try {
+        await executive.startWorkflow(id);
+        await load();
+      } finally {
+        setWfBusy(null);
+      }
+    },
+    [executive, load],
+  );
 
   const runGraphDryRun = useCallback(async () => {
     setGraphRunning(true);
@@ -101,10 +129,10 @@ export default function ApprovalsPage() {
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
         <div>
           <h2 style={{ fontFamily: "'EB Garamond', serif", fontSize: 28, margin: 0, fontWeight: 400, color: "#f5e6d0" }}>
-            Coach Approval Log
+            Trust · Approvals timeline
           </h2>
           <p style={{ margin: "8px 0 0", fontSize: 12, opacity: 0.55, maxWidth: 560, lineHeight: 1.5 }}>
-            Gated coach commands — launch, memory edits, and project switches — logged for Phase 4 operator trust.
+            HITL timeline — proposes, denials, approvals, workflows. Mutations never run without your Approve.
           </p>
         </div>
         <button type="button" onClick={load} disabled={refreshing} style={btnStyle(false)}>
@@ -112,6 +140,44 @@ export default function ApprovalsPage() {
           {refreshing ? "Refreshing…" : "Refresh"}
         </button>
       </header>
+
+      <Section
+        title="Coach workflows"
+        caption="Multi-step operator paths · each mutating step opens the global approval sheet"
+      >
+        {workflows.length === 0 ? (
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.55 }}>No workflows loaded — is HOOT server up?</p>
+        ) : (
+          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+            {workflows.map((wf) => (
+              <div
+                key={wf.id}
+                style={{
+                  padding: 14,
+                  borderRadius: 12,
+                  border: "1px solid rgba(255,176,66,0.15)",
+                  background: "rgba(255,176,66,0.04)",
+                }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#f5e6d0", marginBottom: 6 }}>{wf.title}</div>
+                <p style={{ margin: "0 0 10px", fontSize: 11, opacity: 0.55, lineHeight: 1.45 }}>{wf.description}</p>
+                <div style={{ fontSize: 10, opacity: 0.4, marginBottom: 10 }}>
+                  {wf.stepCount} steps · {(wf.tags || []).join(" · ")}
+                </div>
+                <button
+                  type="button"
+                  disabled={!executive || wfBusy === wf.id}
+                  onClick={() => void runWorkflow(wf.id)}
+                  style={btnStyle(true)}
+                >
+                  <Workflow size={14} />
+                  {wfBusy === wf.id ? "Starting…" : "Start workflow"}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
 
       <Section
         title="Phase 4 progress"
@@ -145,7 +211,7 @@ export default function ApprovalsPage() {
             />
           </div>
           <p style={{ margin: 0, fontSize: 11, opacity: 0.45, lineHeight: 1.5 }}>
-            Hard types: launch, launchProfile, setMemory, appendMemory, switchProject. Each successful or blocked execution appends one line to the JSONL log.
+            Season C logs hard + soft executive actions, proposes, denials, and workflows into the JSONL timeline.
           </p>
         </div>
       </Section>
@@ -217,17 +283,17 @@ export default function ApprovalsPage() {
         )}
       </Section>
 
-      <Section title="Approval events" caption={rows.length ? `Showing last ${rows.length} of ${data.count} total` : "No gated executions yet"}>
+      <Section title="HITL timeline" caption={rows.length ? `Showing last ${rows.length} of ${data.count} total` : "No events yet"}>
         {rows.length === 0 ? (
           <div style={{ padding: 16, borderRadius: 12, border: "1px solid rgba(255,176,66,0.2)", background: "rgba(255,176,66,0.06)", fontSize: 12, lineHeight: 1.55 }}>
-            <strong style={{ color: "#ffb042" }}>No approvals logged yet.</strong> Ask the coach to launch a profile or edit memory — gated commands append here automatically.
+            <strong style={{ color: "#ffb042" }}>No timeline events yet.</strong> Start a workflow or Approve a coach action — proposes and denials appear here.
           </div>
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table style={tableStyle}>
               <thead>
                 <tr>
-                  {["When", "Type", "Result", "Profile", "Project", "Error"].map((h) => (
+                  {["When", "Type", "Decision", "Result", "Route / target", "Source", "Error"].map((h) => (
                     <th key={h} style={thStyle}>{h}</th>
                   ))}
                 </tr>
@@ -285,22 +351,25 @@ function ApprovalRow({ row }: { row: CoachApprovalEntry }) {
   const resultLabel = row.blocked ? "blocked" : row.ok ? "ok" : "failed";
   const resultColor = row.blocked ? "#fbbf24" : row.ok ? "#34d399" : "#f87171";
   const typeLabel = row.type === "graphRun" && row.dryRun ? "graphRun (dry)" : row.type;
+  const decision = row.decision || (row.blocked ? "denied" : row.ok ? "approved" : "—");
+  const where = [row.route, row.target, row.profileId, row.project, row.label].filter(Boolean).join(" · ") || "—";
 
   return (
     <tr>
       <td style={tdLeft}>{formatWhen(row.at)}</td>
       <td style={tdLeft}>
         <code style={{ fontSize: 11 }}>{typeLabel}</code>
+        {row.workflow ? <div style={{ fontSize: 10, opacity: 0.45 }}>{String(row.workflow)}</div> : null}
+      </td>
+      <td style={tdLeft}>
+        <span style={{ fontSize: 11, textTransform: "uppercase", opacity: 0.85 }}>{decision}</span>
       </td>
       <td style={tdLeft}>
         <span style={{ color: resultColor, fontWeight: 600, textTransform: "uppercase", fontSize: 11 }}>{resultLabel}</span>
       </td>
-      <td style={tdLeft}>
-        {row.profileId || "—"}
-        {row.tier ? <span style={{ opacity: 0.45, marginLeft: 6 }}>({row.tier})</span> : null}
-      </td>
-      <td style={tdLeft}>{row.project || "—"}</td>
-      <td style={{ ...tdLeft, opacity: 0.6, fontSize: 11, maxWidth: 240 }}>{row.error || "—"}</td>
+      <td style={{ ...tdLeft, fontSize: 11, maxWidth: 220 }}>{where}</td>
+      <td style={{ ...tdLeft, fontSize: 10, opacity: 0.55 }}>{row.source || "—"}</td>
+      <td style={{ ...tdLeft, opacity: 0.6, fontSize: 11, maxWidth: 200 }}>{row.error || "—"}</td>
     </tr>
   );
 }

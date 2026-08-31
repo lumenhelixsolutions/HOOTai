@@ -8,8 +8,8 @@ export default function ActivityKpiStrip({ data }: { data: ActivityAnalytics }) 
   const tiles = [
     { label: "Today", value: String(t.events), sub: "events" },
     { label: "Docked", value: `${t.dock_minutes}m`, sub: BRAND_COLORS.gold ? "agent time" : "dock" },
-    { label: "External", value: `${t.external_minutes}m`, sub: "outside HOOT" },
-    { label: "Launches", value: String(t.launches), sub: "HOOT sessions" },
+    { label: "External", value: `${t.external_minutes}m`, sub: "outside H00T" },
+    { label: "Launches", value: String(t.launches), sub: "H00T sessions" },
     { label: "Success", value: rate, sub: `${t.successes} ok · ${t.failures} fail` },
     { label: "RTK saved", value: data.kpis.rtk_saved || "—", sub: "tokens prevented" },
   ];

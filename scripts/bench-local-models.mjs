@@ -3,23 +3,58 @@
  * bench-local-models.mjs — Ollama model smoke benchmark for HOOT profile scoring.
  * Usage: node scripts/bench-local-models.mjs [model...]
  * Output: CSV rows to stdout; optional --out state/bench-results.csv
+ * Flags: --out <path>  --merge (default when --out set: merge with existing CSV)
  */
 
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const { resolveOllamaBaseUrl } = require('../ollama-url.js');
+const { parseBenchCsv, mergeBenchRows, formatBenchCsv } = require('../bench-results.js');
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ollamaHost = resolveOllamaBaseUrl(process.env.OLLAMA_HOST);
-const models = process.argv.slice(2).filter((a) => !a.startsWith('--'));
-const outFlag = process.argv.indexOf('--out');
-const outPath = outFlag >= 0 ? process.argv[outFlag + 1] : null;
+const argv = process.argv.slice(2);
+const outFlag = argv.indexOf('--out');
+const outPath = outFlag >= 0 ? argv[outFlag + 1] : null;
+const merge = argv.includes('--merge') || Boolean(outPath);
+const models = argv.filter((a, i) => {
+  if (a.startsWith('--')) return false;
+  if (outFlag >= 0 && i === outFlag + 1) return false;
+  return true;
+});
 const defaultModels = ['phi3:mini', 'qwen2.5:1.5b', 'smollm2:360m'];
 const targets = models.length ? models : defaultModels;
+
+function modelInstalled(installed, name) {
+  if (installed.has(name)) return true;
+  const lower = name.toLowerCase();
+  if (installed.has(lower)) return true;
+  // Accept tag-less match against :latest / any tag
+  const base = lower.split(':')[0];
+  for (const m of installed) {
+    const ml = m.toLowerCase();
+    if (ml === base || ml.startsWith(`${base}:`)) return true;
+  }
+  return false;
+}
+
+function resolveInstalledName(installed, name) {
+  if (installed.has(name)) return name;
+  const lower = name.toLowerCase();
+  for (const m of installed) {
+    if (m.toLowerCase() === lower) return m;
+  }
+  const base = lower.split(':')[0];
+  for (const m of installed) {
+    const ml = m.toLowerCase();
+    if (ml === base || ml.startsWith(`${base}:`)) return m;
+  }
+  return name;
+}
 
 async function listModels() {
   const res = await fetch(`${ollamaHost}/api/tags`);
@@ -38,7 +73,14 @@ async function benchModel(name) {
   });
   const elapsed = Math.round(performance.now() - start);
   if (!res.ok) {
-    return { model: name, status: 'error', latency_ms: elapsed, tokens_per_sec: 0, note: await res.text() };
+    return {
+      model: name,
+      status: 'error',
+      latency_ms: elapsed,
+      tokens_per_sec: 0,
+      note: await res.text(),
+      backend: 'ollama',
+    };
   }
   const body = await res.json();
   const evalCount = body.eval_count || 0;
@@ -50,27 +92,37 @@ async function benchModel(name) {
     latency_ms: elapsed,
     tokens_per_sec: tps,
     note: (body.response || '').trim().slice(0, 40),
+    backend: 'ollama',
   };
 }
 
 const installed = await listModels();
 const rows = [];
 for (const model of targets) {
-  if (!installed.has(model)) {
-    rows.push({ model, status: 'missing', latency_ms: 0, tokens_per_sec: 0, note: 'not pulled' });
+  if (!modelInstalled(installed, model)) {
+    rows.push({
+      model,
+      status: 'missing',
+      latency_ms: 0,
+      tokens_per_sec: 0,
+      note: 'not pulled',
+      backend: 'ollama',
+    });
     continue;
   }
-  rows.push(await benchModel(model));
+  const resolved = resolveInstalledName(installed, model);
+  rows.push(await benchModel(resolved));
 }
 
-const header = 'model,status,latency_ms,tokens_per_sec,note';
-const csv = [header, ...rows.map((r) =>
-  [r.model, r.status, r.latency_ms, r.tokens_per_sec, `"${String(r.note).replace(/"/g, '""')}"`].join(','),
-)].join('\n');
+const existing = merge && outPath && existsSync(outPath)
+  ? parseBenchCsv(readFileSync(outPath, 'utf8'))
+  : [];
+const merged = merge ? mergeBenchRows(existing, rows) : rows;
+const csv = formatBenchCsv(merged);
 
 console.log(csv);
 if (outPath) {
   mkdirSync(dirname(outPath), { recursive: true });
-  writeFileSync(outPath, csv + '\n', 'utf8');
-  console.error(`Wrote ${outPath}`);
+  writeFileSync(outPath, csv, 'utf8');
+  console.error(`Wrote ${outPath} (${merged.length} rows, merge=${merge})`);
 }

@@ -23,7 +23,7 @@ import {
   WizardStepper,
 } from "@/components/builder/parts";
 import { InstallTab, NodeConfigPanel, ResearchTab, TemplateCard } from "@/components/builder/tabs";
-import { HOOT_ACTIONS } from "@/lib/hoot-control";
+import { HOOT_ACTIONS } from '@/lib/h00t-control';
 import { asScanArray } from "@/lib/scan-normalize";
 
 export default function StackBuilder() {
@@ -521,7 +521,7 @@ export default function StackBuilder() {
         />
       )}
 
-      {tab === "install" && (
+      {tab === 'install' && (
         <InstallTab
           search={search}
           onSearch={setSearch}

@@ -1,4 +1,4 @@
-import { hootReportError, shouldAutoReport } from "./hoot-bus";
+import { hootReportError, shouldAutoReport } from "./h00t-bus";
 
 const API_BASE = "";
 const TOKEN_KEY = "hoot_session_token";
@@ -27,7 +27,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   const res = await fetch(`${API_BASE}${path}`, opts);
   const contentType = res.headers.get("content-type") || "";
   if (contentType.includes("text/html") && path.startsWith("/api/")) {
-    throw new Error(`API returned HTML instead of JSON for ${path} — restart HOOT server (node server.js).`);
+    throw new Error(`API returned HTML instead of JSON for ${path} ΓÇö restart H00T server (node server.js).`);
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

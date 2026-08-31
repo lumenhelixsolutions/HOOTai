@@ -1,10 +1,27 @@
-# HOOT — Local AI Command Center
+# H00T — AI Command Center
 
-**Portfolio path:** `D:/projects/HootAi/` — current working repo for all HOOT work (rebrand from AgentDock).
+**Frontend brand:** wordmark **`H00T`** · tagline **`AI Command Center`** (`ui/src/lib/brand.ts`).  
+**Slug:** `h00t` (filenames, packages, CSS).  
+**Portfolio path:** `D:/projects/HootAi/` — working repo (aliases: `h00t`, `H00T`; legacy: AgentDock / HOOT / HOOTai).  
+**Do not** treat `D:\projects\agentdock` as canonical (stale mirror).
 
-**Current version:** `2.3.1` (`VERSION` + `package.json` + `ui/package.json`). Canonical launcher: `pwsh D:\projects\scripts\start-hoot.ps1`.
+**Current version:** `2.3.1` (`VERSION` + `package.json` + `ui/package.json`). Canonical launcher: `pwsh D:\projects\scripts\start-hoot.ps1` (will become `start-h00t.ps1`).
 
-HOOT is a local-only AI agent command center (engine package: `agentdock`). It scans your machine, plans agent stacks, monitors terminals, launches approved profiles, and learns from memory. It binds to `127.0.0.1` only, uses zero runtime npm dependencies, and launches only commands embedded in approved Markdown profile files.
+**H00T** is a local-only AI Command Center. It scans your machine, plans agent stacks, monitors terminals, launches approved profiles, and learns from memory. It binds to `127.0.0.1` only, uses zero runtime npm dependencies, and launches only commands embedded in approved Markdown profile files.
+
+### ProviderRide (standalone + module)
+
+| | |
+|--|--|
+| **Brand** | **ProviderRide** |
+| **Standalone (private)** | `D:\projects\provider-ride` — `node cli.js doctor` |
+| **H00T host** | `provider-ride-host.js` → `GET /api/providers/doctor`, booth, credentials |
+| **Docs** | `docs/PROVIDER_RIDE.md` |
+| **Policy** | Doctor read-only; cooldown / booth open / credential put = HITL; no general web agent |
+| **Credentials** | AES-256-GCM vault under `state/provider-ride/`; H00T `key-vault.js` also AES-GCM + master key file |
+| **UI** | Command Deck `ProviderRidePanel`; CooldownStrip/HealthStrip score chip; Settings sealed-credential intake |
+
+Paired Booth roadmap: doctor → HITL booth → **encrypted creds** → **deck + settings UI** → optional extension → optional isolated profiles.
 
 ## Quick Start
 
@@ -23,7 +40,7 @@ Open `http://127.0.0.1:7777` in your browser.
 
 ## Build & Test
 
-HOOT has **zero runtime npm dependencies**. All tests use Node.js built-in modules.
+H00T has **zero runtime npm dependencies**. All tests use Node.js built-in modules.
 
 ### Run All Tests
 
@@ -32,6 +49,8 @@ npm test
 # or explicitly:
 node --test tests/*.test.js
 ```
+
+Integration lane: the two cross-repo readiness checks in `tests/portfolio-pipeline.test.js` skip by default (they assert sibling-checkout state of lookBOOK/cineforge). Run them with `HOOT_INTEGRATION_TESTS=1 npm test`.
 
 ### Test Structure
 
@@ -78,6 +97,7 @@ No linter is configured by design (zero dependencies). Follow the existing style
 | `index.html` | Single-page dashboard — theming, keyboard shortcuts, responsive layout |
 | `compatibility-rules.json` | Stack evaluation rules — model capabilities, CE compatibility, task tiers |
 | `skills/compound-engineering/skills-catalog.json` | Compound Engineering skills registry |
+| `coding-agent-detect.js` | Detect-only Claude Code / OmniRoute / `ANTHROPIC_BASE_URL` / OpenCode for Vitals (`GET /api/vitals/agents`) — never rewrites agent config |
 | `scripts/sync-ce-skills.js` | Node.js script to sync CE skills from GitHub |
 | `scripts/sync-ce-skills.ps1` | PowerShell script to sync CE skills from GitHub |
 
@@ -104,7 +124,10 @@ No linter is configured by design (zero dependencies). Follow the existing style
 
 | Integration | Location |
 |-------------|----------|
-| RTK token efficiency | `state/user-settings.json`, scanner `token_efficiency` |
+| RTK token efficiency | **HOOT-bundled / preinstalled** (`bin/rtk`, `rtk-runtime.js`, `POST /api/vitals/rtk/ensure`) — not a second install; scanner `token_efficiency` |
+| Vitals hub | `/vitals` — model inventory, advise (dup/outdated), repo integration scan via modules-catalog, bench |
+| Local mascot brain | `hoot-brain.js` ranks Ollama models (**gemma first**); live `/api/tags`; `GET /api/coach/brain` migrates cloud→auto + **doctor** (`ready`, hints); chat local-first with tool-loop timeout + single-shot fallback; `scanner.ps1` hard timeout (`HOOT_SCAN_TIMEOUT_MS`, default 90s) so hung scans cannot starve HTTP |
+| Token Ledger footprint | `POST /api/token-ledger/discover` scans `~/.claude`, `.codex`, `.gemini`, `.grok`, HOOT state/logs; refresh with `footprint` |
 | MCP git catalog | `state/mcp-catalog.json`, `GET /api/mcp` |
 | LM Studio settings | Settings UI, `GET/POST /api/settings`, `localInference.lmstudio`, `backend: lmstudio` / `lm-studio` local providers |
 | llama.cpp settings | Settings UI, `GET/POST /api/settings`, `backend: llamacpp` profiles |
@@ -178,6 +201,26 @@ Build or upgrade conversational UI with **[assistant-ui](https://github.com/assi
 - UI packages live in `ui/` only (server stays zero runtime npm deps).
 - Coach calls existing `POST /api/chat` via an assistant-ui external-store runtime.
 - Launch commands from chat require UI approval before profile execution.
+- **Season A (truthful command center) complete:**
+  - **A1** HealthStrip — HOOT / Ollama / brain / scan always visible
+  - **A2** ApprovalSheet + PendingActionsDock — global HITL queue (no `window.confirm`)
+  - **A3** Operator spine on Home — scan → brain → project → launch → session primary CTA
+  - **A4** Copy truth — scrub false “running/completed” claims; pending Approve notices
+  - Mutations never auto-run when `operator_policy.hitl` is true; reads may auto-run
+- **Season B (curated power) complete:**
+  - **B1** Five hubs in Advanced nav: Operate · Machine · Trust · Fleet · Configure (`app-shell.ts`)
+  - **B2** Vitals chapters via `?tab=` — Overview | Models | Agents | Integrations | Bench
+  - **B3** Settings tiers — Essentials vs Expert (`hoot-settings-tier`)
+  - **B4** Hub blurbs in sidebar + shell copy aligned to hubs
+- **Season C (owl runs the center) complete:**
+  - **C1** Multi-step workflows (`coach-workflows.js`, `/api/coach/workflows`, Approvals “Start workflow”)
+  - **C2** Screen binding — `data-hoot-bind` + `.hoot-bind-pulse` on nav when actions proposed
+  - **C3** HITL timeline logs propose/deny/approve soft+hard (`POST /api/coach/approvals/log`)
+  - **C4** Optional read-only akashic vault excerpts in coach context (`operator_policy.vault_context`)
+- **Season D (fleet calm) complete:**
+  - **D1** Portfolio fleet narrative (one story before MVP grid)
+  - **D2** Resilience copy on HealthStrip (HOOT down / Ollama down / scan stale)
+  - **D3** Client success metrics (`hoot-metrics.ts`) — HITL propose/approve rates on HealthStrip
 
 ## Compound Engineering Integration
 

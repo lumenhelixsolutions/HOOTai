@@ -279,8 +279,44 @@ export default function PortfolioPage() {
     const brains = cards.filter((c) => c.brain.present).length;
     const gitIssues = cards.filter((c) => c.git.issues.length > 0).length;
     const bridged = cards.filter((c) => c.bridgeCount > 0).length;
-    return { total: cards.length, brains, gitIssues, bridged };
+    const ready = cards.filter((c) => c.git.tone === "READY").length;
+    return { total: cards.length, brains, gitIssues, bridged, ready };
   }, [cards]);
+
+  /** Season D1 — one calm narrative before the grid */
+  const portfolioStory = useMemo(() => {
+    if (!cards.length) {
+      return {
+        headline: "No portfolio projects registered yet",
+        body: "Run a registry refresh or set an active project from Home so fleet health has something to narrate.",
+        tone: "UNKNOWN" as const,
+      };
+    }
+    const active = cards.find((c) => c.active);
+    const attention = cards.filter((c) => c.git.issues.length > 0 || !c.brain.present);
+    if (stats.gitIssues === 0 && stats.brains >= Math.max(1, Math.floor(stats.total / 2))) {
+      return {
+        headline: "Fleet is calm — git clean enough to hand off",
+        body: active
+          ? `Active focus is ${active.name}. ${stats.brains}/${stats.total} brains present · ${stats.bridged} bridge-linked. Drill into cards only if you need a specific MVP.`
+          : `No active MVP selected. ${stats.ready}/${stats.total} git-clean · set active from a card before launches.`,
+        tone: "READY" as const,
+      };
+    }
+    if (attention.length > 0) {
+      const names = attention.slice(0, 3).map((c) => c.name).join(", ");
+      return {
+        headline: "Fleet needs attention before multi-repo work",
+        body: `Watch: ${names}${attention.length > 3 ? ` (+${attention.length - 3})` : ""}. Prefer fixing git/brain on the active project first, then expand.`,
+        tone: "DEGRADED" as const,
+      };
+    }
+    return {
+      headline: "Fleet snapshot ready",
+      body: `${stats.total} MVPs · ${stats.brains} brains · ${stats.bridged} bridges. Pick one active project and stay there for the session.`,
+      tone: "UNKNOWN" as const,
+    };
+  }, [cards, stats]);
 
   useEffect(() => {
     if (!pipeline) return;
@@ -322,12 +358,11 @@ export default function PortfolioPage() {
         <div>
           <div className="mb-2 flex items-center gap-2 text-[#ffb042]">
             <Compass size={18} />
-            <span className="text-[11px] uppercase tracking-[0.16em] opacity-70">Intelligence</span>
+            <span className="text-[11px] uppercase tracking-[0.16em] opacity-70">Fleet hub</span>
           </div>
           <h1 className="font-serif text-3xl font-normal tracking-[-0.02em] text-foreground">Portfolio MVPs</h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed opacity-55">
-            Launcher dashboard for cineforge, lookBOOK, racegps, NOTEtoolsLM-v2, PromptPack, ecc, and HOOT — git health,
-            project-brain status, and quick links into pipeline work.
+            One fleet story first — then drill into MVP cards only when you need detail.
           </p>
           <p className="mt-1 text-[11px] opacity-40">
             {stats.total} repos · {stats.brains} brains · updated {new Date(pipeline.generated_at).toLocaleString()}
@@ -343,6 +378,30 @@ export default function PortfolioPage() {
           {refreshing ? "Refreshing…" : "Refresh registry"}
         </button>
       </header>
+
+      {/* Season D1 — portfolio narrative */}
+      <section
+        className={`rounded-3xl border p-5 md:p-6 ${
+          portfolioStory.tone === "READY"
+            ? "border-emerald-400/25 bg-emerald-400/[0.05]"
+            : portfolioStory.tone === "DEGRADED"
+              ? "border-amber-400/30 bg-amber-400/[0.06]"
+              : "border-border bg-foreground/[0.03]"
+        }`}
+        aria-label="Portfolio health story"
+      >
+        <div className="mb-1 text-[11px] uppercase tracking-[0.16em] opacity-45">Fleet narrative</div>
+        <h2 className="m-0 font-serif text-2xl tracking-[-0.02em] text-foreground">{portfolioStory.headline}</h2>
+        <p className="mb-0 mt-2 max-w-3xl text-sm leading-relaxed opacity-70">{portfolioStory.body}</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link to="/pipeline" className="text-xs font-medium text-primary hover:underline">
+            Pipeline matrix →
+          </Link>
+          <Link to="/" className="text-xs font-medium text-muted-foreground hover:text-foreground">
+            Operator spine on Home →
+          </Link>
+        </div>
+      </section>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <MiniStat label="MVPs" value={stats.total} />

@@ -723,9 +723,35 @@ function buildTokenLedger({
   mode = 'full',
   transactions = [],
   importPayload = null,
+  hootRoot = null,
+  autoDiscover = false,
 } = {}) {
   const config = loadConfig(configFile || path.join(stateDir, 'token-ledger-config.json'));
   const cache = loadCache(cacheFile || path.join(stateDir, 'token-ledger-cache.json'));
+
+  // Auto-attach discovered multi-source roots when refreshing footprint
+  let footprintDiscover = null;
+  if (autoDiscover || refresh) {
+    footprintDiscover = discoverLedgerSources({ hootRoot: hootRoot || path.dirname(stateDir) });
+    const extraRoots = [];
+    for (const s of footprintDiscover.sources || []) {
+      if (!s.present || !s.enabled_default) continue;
+      if (s.id === 'codex') continue; // already via codex_roots
+      for (const r of s.roots || []) extraRoots.push(r);
+    }
+    if (extraRoots.length) {
+      const existing = new Set((config.codex_roots || []).map((p) => path.normalize(expandHome(p))));
+      const merged = [...(config.codex_roots || [])];
+      for (const r of extraRoots) {
+        const n = path.normalize(expandHome(r));
+        if (!existing.has(n)) {
+          existing.add(n);
+          merged.push(r);
+        }
+      }
+      config.codex_roots = merged;
+    }
+  }
 
   let ingest;
   if (importPayload) {
@@ -782,12 +808,18 @@ function buildTokenLedger({
       codex_roots: config.codex_roots || [],
       claude_csv: config.claude_csv || null,
       chatgpt_csv: config.chatgpt_csv || null,
+      footprint: footprintDiscover || cache.footprint || null,
     },
     key_moments: buildKeyMoments(days),
     work_breakdown: buildWorkBreakdown(ingest.sessions, days),
     configured: Boolean((config.codex_roots || []).length || config.claude_csv || config.chatgpt_csv),
     empty: days.length === 0 || totalAll === 0,
+    footprint_summary: footprintDiscover?.summary || null,
   };
+
+  if (footprintDiscover) {
+    cache.footprint = footprintDiscover;
+  }
 
   if (cache.imported_metadata && ingest.refresh_mode === 'import') {
     Object.assign(metadata, cache.imported_metadata, {
@@ -828,6 +860,140 @@ function discoverDefaultPaths(homeDir) {
   return candidates;
 }
 
+const LEDGER_SOURCE_SPECS = [
+  { id: 'codex', label: 'Codex', roots: (h) => [path.join(h, '.codex', 'sessions'), path.join(h, '.codex', 'logs')] },
+  { id: 'claude', label: 'Claude Code', roots: (h) => [path.join(h, '.claude')] },
+  { id: 'gemini', label: 'Gemini CLI', roots: (h) => [path.join(h, '.gemini')] },
+  { id: 'grok', label: 'Grok CLI / Grok Build', roots: (h) => [path.join(h, '.grok')] },
+  { id: 'cursor', label: 'Cursor', roots: (h) => [path.join(h, '.cursor'), path.join(h, 'AppData', 'Roaming', 'Cursor', 'User')] },
+  { id: 'hoot', label: 'HOOT kernel', roots: (_h, hootRoot) => hootRoot ? [path.join(hootRoot, 'state'), path.join(hootRoot, 'logs')] : [] },
+];
+
+function countJsonlShallow(root, { maxFiles = 200, maxDepth = 4 } = {}) {
+  let files = 0;
+  let tokensProbe = 0;
+  let newest = 0;
+  const start = Date.now();
+  function walk(dir, depth) {
+    if (files >= maxFiles || Date.now() - start > 8000 || depth > maxDepth) return;
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const ent of entries) {
+      if (files >= maxFiles) break;
+      if (ent.name === 'node_modules' || ent.name === '.git') continue;
+      const full = path.join(dir, ent.name);
+      try {
+        if (ent.isDirectory()) walk(full, depth + 1);
+        else if (ent.isFile() && /\.(jsonl?|ndjson)$/i.test(ent.name)) {
+          files += 1;
+          try {
+            const st = fs.statSync(full);
+            if (st.mtimeMs > newest) newest = st.mtimeMs;
+            // Sample first 30 lines for token fields
+            const sample = fs.readFileSync(full, 'utf8').split(/\r?\n/).slice(0, 40);
+            for (const line of sample) {
+              if (!line) continue;
+              try {
+                const fields = extractTokenFields(JSON.parse(line));
+                if (fields) tokensProbe += fields.total;
+              } catch { /* skip */ }
+            }
+          } catch { /* skip */ }
+        }
+      } catch { /* skip */ }
+    }
+  }
+  if (root && fs.existsSync(root)) walk(root, 0);
+  return { files, tokens_probe: tokensProbe, newest_mtime: newest || null };
+}
+
+/**
+ * Discover local AI usage log roots across the machine (read-only).
+ */
+function discoverLedgerSources({ homeDir, hootRoot } = {}) {
+  const home = homeDir || process.env.HOME || process.env.USERPROFILE || '';
+  const sources = [];
+  for (const spec of LEDGER_SOURCE_SPECS) {
+    const roots = (spec.roots(home, hootRoot) || []).filter((p) => p && fs.existsSync(p));
+    if (!roots.length) {
+      sources.push({
+        id: spec.id,
+        label: spec.label,
+        present: false,
+        roots: [],
+        files: 0,
+        tokens_probe: 0,
+        newest_mtime: null,
+      });
+      continue;
+    }
+    let files = 0;
+    let tokensProbe = 0;
+    let newest = 0;
+    for (const root of roots) {
+      const c = countJsonlShallow(root);
+      files += c.files;
+      tokensProbe += c.tokens_probe;
+      if (c.newest_mtime && c.newest_mtime > newest) newest = c.newest_mtime;
+    }
+    sources.push({
+      id: spec.id,
+      label: spec.label,
+      present: true,
+      roots,
+      files,
+      tokens_probe: tokensProbe,
+      newest_mtime: newest || null,
+      enabled_default: files > 0 || spec.id === 'codex' || spec.id === 'hoot',
+    });
+  }
+  const defaults = discoverDefaultPaths(home);
+  return {
+    schema: 'hoot.ledger_discover.v1',
+    discovered_at: new Date().toISOString(),
+    home,
+    sources,
+    csv: {
+      claude_csv: defaults.claude_csv,
+      chatgpt_csv: defaults.chatgpt_csv,
+    },
+    summary: {
+      sources_present: sources.filter((s) => s.present).length,
+      files: sources.reduce((n, s) => n + s.files, 0),
+      tokens_probe: sources.reduce((n, s) => n + s.tokens_probe, 0),
+    },
+  };
+}
+
+/**
+ * Ingest generic JSONL token events from multi-source roots into codex-shaped day map
+ * (shared total_tokens lane tagged via sessions label).
+ */
+function ingestMultiSourceRoots(sourceRoots, opts = {}) {
+  // sourceRoots: [{ id, roots: string[] }]
+  const allRoots = [];
+  const sourceByRoot = new Map();
+  for (const s of sourceRoots || []) {
+    for (const r of s.roots || []) {
+      const exp = expandHome(r);
+      allRoots.push(exp);
+      sourceByRoot.set(path.normalize(exp), s.id);
+    }
+  }
+  const result = ingestCodexRoots(allRoots, opts);
+  // Tag sessions with source id when path matches
+  for (const sess of result.sessions || []) {
+    if (!sess.file) continue;
+    let src = 'unknown';
+    const fileNorm = path.normalize(sess.file);
+    for (const [root, id] of sourceByRoot) {
+      if (fileNorm.startsWith(root)) { src = id; break; }
+    }
+    sess.source = src;
+  }
+  return result;
+}
+
 function updateConfig(configFile, patch) {
   const current = loadConfig(configFile);
   const next = { ...current, ...patch, version: 1 };
@@ -850,7 +1016,10 @@ module.exports = {
   saveConfig,
   updateConfig,
   discoverDefaultPaths,
+  discoverLedgerSources,
+  ingestMultiSourceRoots,
   classifySession,
   FERMI_ASSUMPTIONS,
   WORK_FAMILY_RULES,
+  LEDGER_SOURCE_SPECS,
 };

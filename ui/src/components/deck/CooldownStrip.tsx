@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Gauge, PictureInPicture2 } from "lucide-react";
 import { useCooldownRegistry } from "@/hooks/useCooldownRegistry";
 import CooldownBarCore from "./CooldownBarCore";
+import { ProviderRideScoreChip } from "./ProviderRidePanel";
 import { useDeckPopout } from "./popout";
 import HoverTip from "@/components/HoverTip";
 import { tooltipTitle } from "@/lib/tooltips";
@@ -19,6 +20,7 @@ export default function CooldownStrip() {
 
   return (
     <div className="hoot-card-soft hidden items-center gap-2.5 rounded-2xl px-3 py-1.5 lg:flex" aria-label="Provider cooldown monitor">
+      <ProviderRideScoreChip />
       <Link to="/deck" className="flex items-center gap-2 no-underline" title={tooltipTitle("deck.open")}>
         <CooldownBarCore registry={registry} nowMs={nowMs} />
         <Gauge size={14} className="hoot-gold-text" />

@@ -28,7 +28,7 @@ coach-graph/
   graph.spec.json
   graph.py            # LangGraph runtime (shipped)
   nodes.py
-  hoot_client.py
+  h00t_client.py
   requirements.txt
 ```
 

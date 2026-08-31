@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ChevronRight, FolderKanban, LayoutGrid, Radar, Sparkles, Timer, X } from "lucide-react";
+import { CheckCircle2, ChevronRight, Cpu, FolderKanban, LayoutGrid, Radar, Sparkles, Timer, X } from "lucide-react";
 import { api } from "@/lib/api";
 
 type OnboardingPayload = Awaited<ReturnType<typeof api.getOnboarding>>;
 
 const STEP_ICONS: Record<string, typeof Radar> = {
   scan: Radar,
+  local_brain: Cpu,
   project: FolderKanban,
   layout: LayoutGrid,
   providers: Timer,
@@ -79,6 +80,20 @@ export default function OnboardingWizard({
       await run("scan", async () => {
         const r = await api.postOnboarding({ action: "run_scan" });
         setData(r.onboarding);
+      });
+      return;
+    }
+    if (step === "local_brain") {
+      await run("local_brain", async () => {
+        const lb = (data as any)?.local_brain;
+        const model = lb?.model || lb?.suggestions?.find((s: any) => s.recommended)?.tag || lb?.installed?.[0];
+        if (model && lb?.ollama_present) {
+          const r = await api.postOnboarding({ action: "set_local_brain", model });
+          setData(r.onboarding);
+        } else {
+          const r = await api.postOnboarding({ action: "skip_local_brain" });
+          setData(r.onboarding);
+        }
       });
       return;
     }
@@ -179,6 +194,76 @@ export default function OnboardingWizard({
             ) : (
               <div className="text-xs opacity-55">No scan yet — run one to continue.</div>
             )}
+          </div>
+        )}
+
+        {step === "local_brain" && (
+          <div className="grid gap-3 text-sm">
+            <p className="opacity-70">
+              The HOOT mascot uses a <strong className="text-foreground">local Ollama</strong> brain when available.
+              Preferred on this studio: <code className="text-xs">gemma4:latest</code>.
+            </p>
+            {(data as any)?.local_brain?.ready ? (
+              <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2.5 text-sm text-emerald-300">
+                Ready — will use <code className="text-xs">{(data as any).local_brain.model}</code>
+                {(data as any).local_brain.source ? ` (${(data as any).local_brain.source})` : ""}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2.5 text-sm text-amber-200">
+                No suitable local model active yet. Pull a recommended tag or skip (rules-only coach).
+              </div>
+            )}
+            {((data as any)?.local_brain?.installed || []).length > 0 && (
+              <div className="text-xs opacity-70">
+                Installed: {((data as any).local_brain.installed as string[]).join(", ")}
+              </div>
+            )}
+            <div className="grid gap-2">
+              {((data as any)?.local_brain?.suggestions || []).map((s: any) => (
+                <div key={s.tag} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border px-3 py-2">
+                  <div>
+                    <div className="font-medium">{s.tag}{s.recommended ? " · recommended" : ""}{s.installed ? " · installed" : ""}</div>
+                    <div className="text-[11px] opacity-50">{s.reason}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    {s.installed ? (
+                      <button
+                        type="button"
+                        className="rounded-lg border border-border px-2 py-1 text-xs"
+                        onClick={() => run("use-model", async () => {
+                          const r = await api.postOnboarding({ action: "set_local_brain", model: s.tag });
+                          setData(r.onboarding);
+                        })}
+                      >
+                        Use
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="rounded-lg border border-border px-2 py-1 text-xs"
+                        onClick={() => run("pull-model", async () => {
+                          await api.postOnboarding({ action: "pull_local_model", model: s.tag });
+                          const r = await api.postOnboarding({ action: "set_local_brain", model: s.tag });
+                          setData(r.onboarding);
+                        })}
+                      >
+                        Pull + use
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="self-start text-xs opacity-55 underline"
+              onClick={() => run("skip-brain", async () => {
+                const r = await api.postOnboarding({ action: "skip_local_brain" });
+                setData(r.onboarding);
+              })}
+            >
+              Skip local brain for now
+            </button>
           </div>
         )}
 

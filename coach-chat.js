@@ -92,7 +92,10 @@ function buildCoachChatResponse({ text, context = {} }) {
   }
 
   lines.push('');
-  lines.push('_I\'m answering from your current screen and live state — not a generic system dump. Add a Gemini key in Settings for deeper LLM reasoning._');
+  lines.push('_Answering from screen + live state. I propose actions for your Approve — I do not claim scans or launches already ran._');
+  if (suggestCommands(context).length) {
+    lines.push('_Proposed command chips (if any) need HITL approval before they mutate the command center._');
+  }
 
   return {
     text: lines.join('\n'),

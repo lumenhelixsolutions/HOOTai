@@ -1,4 +1,6 @@
 // Self-hosted fonts (local-first: no CDN dependency)
+// build-stamp: force new index hash after static rebuilds (stale chunk recovery)
+void 'hoot-ui-2026-08-02-beak-static';
 import '@fontsource/inter/300.css'
 import '@fontsource/inter/400.css'
 import '@fontsource/inter/500.css'

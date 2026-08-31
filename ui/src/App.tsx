@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import AppLayout from "./components/AppLayout";
-import HootUnlock from "./components/HootUnlock";
+import HootUnlock from "./components/H00tUnlock";
 import { AppBootShell, PageShell } from "./components/AppShell";
 import { api } from "./lib/api";
 import { APP_ROUTES } from "./lib/app-shell";

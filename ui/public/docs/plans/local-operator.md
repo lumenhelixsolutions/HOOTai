@@ -239,7 +239,7 @@ Keep ` ```json commands``` ` blocks; expand executor to cover all app tools. Wor
 ### PR4 — Native tool loop + monitoring
 
 - Ollama tools API multi-turn loop
-- Operator audit log: `state/hoot-operator-log.json` (every tool call, blocked attempt)
+- Operator audit log: `state/h00t-operator-log.json` (every tool call, blocked attempt)
 - UI: Settings → Operator policy (read roots, enabled MCP, blocked commands)
 - Coach hint when external agent detected: offer to consolidate via Launch Center
 

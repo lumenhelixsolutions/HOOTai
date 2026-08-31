@@ -17,6 +17,9 @@ logs/*.md
 server.log
 state/*.json
 state/sessions/*.ps1
+state/key-vault.master
+state/core/transactions/
+state/core/cache/
 
 # OS
 .DS_Store
@@ -36,6 +39,13 @@ agent-tools/
 tmp/
 temp/
 *.tmp
+
+# Vendored binaries
+bin/
+*.exe
+
+# Generated local stack profiles
+profiles/stack-local-*.md
 
 # Do not ignore profile markdowns, memory, or briefs
 !profiles/*.md

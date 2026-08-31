@@ -1,10 +1,11 @@
 /*
-  HOOT — Local AI Command Center (agentdock engine)
+  H00T — AI Command Center (engine path may still be HootAi / agentdock legacy)
   Local-only AI agent stack scanner, planner, terminal monitor, launcher, and memory system.
   - No external npm dependencies.
   - Binds to 127.0.0.1 only.
   - Executes only commands embedded in approved profile markdown files.
   - Captures launch stdout/stderr in an integrated terminal monitor.
+  - ProviderRide (sibling package) = provider doctor + HITL account booth module.
 */
 
 const { assertCanonicalHootRoot } = require('./canonical-root');
@@ -19,9 +20,18 @@ const https = require('https');
 const { advisorAnalyze } = require('./advisor');
 const { processChatMessage, getChatHistory, clearChat } = require('./chat');
 const { executeCoachCommand } = require('./coach-operator');
-const { appendOperatorLog, listOperatorLog } = require('./hoot-operator-log');
+const { appendOperatorLog, listOperatorLog } = require('./h00t-operator-log');
 const { listCoachActions } = require('./coach-actions');
-const { resolveHootBrain, getPullState } = require('./hoot-brain');
+const {
+  resolveHootBrain,
+  resolveHootBrainAsync,
+  getPullState,
+  migrateBrainSettingsIfNeeded,
+  startOllamaPull,
+  suggestLocalModels,
+  fetchLiveOllamaModels,
+  bestOperatorModelFromList,
+} = require('./h00t-brain');
 const { buildCoachHints } = require('./coach-hints');
 const { getViewGuide, ORCHESTRATION_LOOP } = require('./coach-guides');
 const {
@@ -35,14 +45,17 @@ const {
   getVaultKey,
   hasVaultKey,
   keyAvailable,
+  KNOWN_KEYS,
+  vaultSecurityStatus,
+  migrateVaultToEncrypted,
 } = require('./key-vault');
 const { createModuleManager } = require('./module-manager');
 const { getPrefabInventory } = require('./prefab-inventory');
 const { runAgentRadar } = require('./agent-radar');
 const { buildTokenBurnReport, refreshRtkGain } = require('./token-burn');
-const { buildTokenLedger, updateConfig, discoverDefaultPaths, loadConfig } = require('./token-ledger');
+const { buildTokenLedger, updateConfig, discoverDefaultPaths, loadConfig, discoverLedgerSources } = require('./token-ledger');
 const { buildPipelineOverview, buildProjectOverview } = require('./portfolio-pipeline');
-const { checkAuth, generateToken, hashToken, getAuthSettings, isAuthPublicPath } = require('./hoot-auth');
+const { checkAuth, generateToken, hashToken, getAuthSettings, isAuthPublicPath } = require('./h00t-auth');
 const { createActivityLog } = require('./activity-log');
 const { buildActivityAnalytics, formatDiaryMarkdown } = require('./activity-analytics');
 const { hydrateLastScan, attachCacheMeta } = require('./scan-cache');
@@ -57,6 +70,9 @@ const {
   scoreProfileForCooldown,
   profileToProviderId,
 } = require('./provider-cooldown');
+const providerRideHost = require('./provider-ride-host');
+/** @deprecated alias */
+const providerReachHost = providerRideHost;
 const { loadRoots, putRoots, validateRoots, buildTerseContext, getActiveRootPath, applyInferredRoots } = require('./workspace-roots');
 const { buildContextRadar } = require('./context-radar');
 const { buildOnboardingState } = require('./onboarding');
@@ -100,7 +116,8 @@ const {
   validateBenchCsv,
   DEFAULT_CSV: BENCH_CSV,
 } = require('./bench-results');
-const { logCoachExecution, loadApprovalLog, summarizeApprovalLog } = require('./coach-approval-log');
+const { logCoachExecution, logHitlEvent, loadApprovalLog, summarizeApprovalLog } = require('./coach-approval-log');
+const { listWorkflows, startWorkflow } = require('./coach-workflows');
 const {
   probeCoachGraph,
   fetchCoachGraphSpec,
@@ -108,6 +125,22 @@ const {
   runCoachGraph,
   DEFAULT_BASE: COACH_GRAPH_BASE,
 } = require('./coach-graph-bridge');
+const okfPack = require('./okf-pack');
+const { buildModelInventory, buildVitalsAdvise } = require('./model-inventory');
+const {
+  analyzeSafetensors,
+  quarantinePackage,
+  restoreQuarantine,
+  loadQuarantineLog,
+} = require('./safetensors-advisor');
+const { scanRepoIntegrations } = require('./repo-integration-scan');
+const {
+  ensureRtkBundled,
+  getRtkStatus,
+  pathWithHootBin,
+  resolveRtk,
+} = require('./rtk-runtime');
+const { detectCodingAgents } = require('./coding-agent-detect');
 
 const ROOT = __dirname;
 const SERVER_STARTED_AT = new Date().toISOString();
@@ -143,7 +176,7 @@ const FILES = {
   modulesState: path.join(DIRS.state, 'modules-state.json'),
   activityLog: path.join(DIRS.state, 'activity-log.json'),
   userSession: path.join(DIRS.state, 'user-session.json'),
-  hootOperatorLog: path.join(DIRS.state, 'hoot-operator-log.json'),
+  hootOperatorLog: path.join(DIRS.state, 'h00t-operator-log.json'),
   providerCooldown: path.join(DIRS.state, 'provider-cooldown.json'),
   workspaceRoots: path.join(DIRS.state, 'workspace-roots.json'),
   handoffLatest: path.join(DIRS.state, 'handoff-latest.json'),
@@ -161,16 +194,26 @@ const DEFAULT_USER_SETTINGS = {
     lmstudio: { enabled: false, host: '127.0.0.1', port: 1234, protocol: 'http', basePath: '/v1', defaultModel: '' },
     llamacpp: { enabled: false, binary: 'llama-server', modelPath: '', host: '127.0.0.1', port: 8081, contextSize: 8192, nGpuLayers: -1, threads: 8, extraArgs: '' },
   },
-  tokenEfficiency: { rtkRecommended: true, rtkAgents: ['claude', 'codex', 'cursor', 'hermes'] },
+  tokenEfficiency: {
+    rtkRecommended: true,
+    rtkBundled: true,
+    rtkPreinstalled: true,
+    rtkAgents: ['claude', 'codex', 'cursor', 'hermes'],
+  },
   mcp: { enabledServers: ['git'] },
   auth: { enabled: false, token_hash: null, created_at: null },
   network: { lan_enabled: LAN_MODE },
   hoot_brain: { mode: 'auto', ollama_model: '', cloud_provider: 'gemini' },
   operator_policy: {
     native_tools: true,
+    /** Mutating coach tools propose for UI Approve; reads still auto-run. */
+    hitl: true,
     mcp_git: true,
     mcp_filesystem: true,
     audit_log: true,
+    /** Season C4 — optional read-only akashic vault excerpts for coach context */
+    vault_context: true,
+    vault_path: '',
   },
   hybrid_workspace: {
     auto_handoff_on_cooldown: true,
@@ -596,12 +639,26 @@ function setActiveProject(projectPath) {
   return data;
 }
 
-function buildOnboardingPayload() {
+async function buildOnboardingPayload() {
   const settings = loadUserSettings();
   const registry = readProjectRegistry();
   const rootsState = loadRoots(activeProject);
   const rootsValidated = validateRoots(rootsState);
   const scan = getCachedScanResponse() || lastScan;
+  let localBrain = null;
+  try {
+    const brain = await resolveHootBrainAsync({ scan, settings, autoPull: false });
+    localBrain = {
+      ready: Boolean(brain.available && brain.provider === 'ollama'),
+      model: brain.model || null,
+      provider: brain.provider,
+      source: brain.source,
+      suggestions: brain.suggestions || suggestLocalModels(brain.installed_models || []),
+      installed: brain.installed_models || [],
+      ollama_present: Boolean(scan?.tools?.ollama?.present || (brain.installed_models || []).length),
+      pull: getPullState(),
+    };
+  } catch { /* optional */ }
   return buildOnboardingState({
     settings,
     scan,
@@ -611,6 +668,7 @@ function buildOnboardingPayload() {
     rootsValidated,
     portfolioRoots: getProjectRoots(),
     cooldownRaw: loadCooldownState(),
+    localBrain,
   });
 }
 
@@ -726,7 +784,19 @@ function injectLaunchVars(script) {
 }
 
 function injectLaunchContext(script, projectPath) {
-  return injectLaunchVars(injectProjectPath(script, projectPath));
+  let out = injectLaunchVars(injectProjectPath(script, projectPath));
+  // Prepend HOOT bin so bundled RTK is on PATH for profile launches (preinstalled)
+  const rtk = resolveRtk(ROOT);
+  if (rtk.present && rtk.path) {
+    const bin = path.dirname(rtk.path);
+    const pathLine = process.platform === 'win32'
+      ? `$env:Path = '${bin.replace(/'/g, "''")};' + $env:Path`
+      : `export PATH="${bin}:$PATH"`;
+    if (!String(out).includes(bin)) {
+      out = `${pathLine}\n${out}`;
+    }
+  }
+  return out;
 }
 
 function readJSON(file, fallback) {
@@ -788,17 +858,63 @@ function normalizeLoadedModels(scan) {
   if (raw && typeof raw === 'object' && raw.name) return [raw];
   return parseOllamaPsRaw(scan?.ollama?.ps_raw);
 }
+/** Coerce PowerShell JSON arrays: real arrays, single objects, or numeric-key maps. */
+function asScanArray(value) {
+  if (Array.isArray(value)) return value;
+  if (!value || typeof value !== 'object') return [];
+  const keys = Object.keys(value);
+  if (keys.length === 0) return [];
+  if (keys.every((k) => /^\d+$/.test(k))) {
+    return keys.sort((a, b) => Number(a) - Number(b)).map((k) => value[k]);
+  }
+  return [value];
+}
 function normalizeScanShape(scan) {
   if (!scan || typeof scan !== 'object') return scan;
+  const hardware = scan.hardware && typeof scan.hardware === 'object'
+    ? {
+        ...scan.hardware,
+        gpu: asScanArray(scan.hardware.gpu),
+        disk: asScanArray(scan.hardware.disk),
+      }
+    : scan.hardware;
+  // HOOT-bundled RTK (bin/) is preinstalled — never report missing when present on disk
+  const rtkStatus = getRtkStatus(ROOT);
+  const tools = { ...(scan.tools || {}) };
+  if (rtkStatus.present) {
+    tools.rtk = {
+      ...(tools.rtk || {}),
+      present: true,
+      path: rtkStatus.path,
+      version: rtkStatus.version,
+      source: rtkStatus.source || 'hoot-bin',
+    };
+  }
+  const token_efficiency = {
+    ...(scan.token_efficiency || {}),
+    rtk: {
+      ...(scan.token_efficiency?.rtk || {}),
+      present: Boolean(rtkStatus.present || scan.token_efficiency?.rtk?.present || tools.rtk?.present),
+      path: rtkStatus.path || scan.token_efficiency?.rtk?.path || tools.rtk?.path || null,
+      version: rtkStatus.version || scan.token_efficiency?.rtk?.version || tools.rtk?.version || null,
+      source: rtkStatus.source || scan.token_efficiency?.rtk?.source || tools.rtk?.source || null,
+      preinstalled: true,
+      separate_install_required: false,
+      gain: scan.token_efficiency?.rtk?.gain ?? null,
+    },
+  };
   return {
     ...scan,
-    coders: Array.isArray(scan.coders) ? scan.coders : [],
-    env_files: Array.isArray(scan.env_files) ? scan.env_files : [],
+    hardware,
+    tools,
+    token_efficiency,
+    coders: asScanArray(scan.coders),
+    env_files: asScanArray(scan.env_files),
     ollama: { ...scan.ollama, loaded_models: normalizeLoadedModels(scan) },
     local_models: {
-      ...scan.local_models,
-      backends: Array.isArray(scan.local_models?.backends) ? scan.local_models.backends : [],
-      discovered_ggufs: Array.isArray(scan.local_models?.discovered_ggufs) ? scan.local_models.discovered_ggufs : [],
+      ...(scan.local_models || {}),
+      backends: asScanArray(scan.local_models?.backends),
+      discovered_ggufs: asScanArray(scan.local_models?.discovered_ggufs),
     },
   };
 }
@@ -954,6 +1070,41 @@ function getHybridWorkspaceContext(scan = lastScan) {
   };
 }
 
+/** Vault key presence map (never values) for ProviderRide doctor. */
+function vaultPresenceMap() {
+  const out = {};
+  for (const name of KNOWN_KEYS || []) {
+    try {
+      out[name] = hasVaultKey(name);
+    } catch {
+      out[name] = false;
+    }
+  }
+  return out;
+}
+
+/**
+ * ProviderRide doctor snapshot for bootstrap / API.
+ * Fail-soft if sibling package missing.
+ */
+function buildProviderRideReport({ scan = lastScan, live = null } = {}) {
+  const registry = enrichCooldownRegistry(loadCooldownState(), { scan });
+  // CLI presence from last scan coders (sync, no extra probes)
+  const cliPresent = (scan?.coders || [])
+    .filter((c) => c.detection?.present || c.present)
+    .map((c) => c.id || c.command)
+    .filter(Boolean);
+  return providerRideHost.runHostDoctor({
+    registry,
+    scan,
+    vaultPresence: vaultPresenceMap(),
+    live: live || undefined,
+    cliPresent,
+  });
+}
+/** @deprecated */
+const buildProviderReachReport = buildProviderRideReport;
+
 function telemetryCtx() {
   return { scan: lastScan, hootRoot: ROOT, activeProject };
 }
@@ -1049,25 +1200,83 @@ function buildPlan(goal, scan = lastScan) {
   };
 }
 
-function runScanner(repoPath) {
+/** Default scanner wall-clock timeout (ms). Stuck scanner.ps1 was leaving HOOT HTTP dead in practice. */
+const SCAN_TIMEOUT_MS = Math.max(15000, Number(process.env.HOOT_SCAN_TIMEOUT_MS) || 90000);
+const SCAN_STDOUT_MAX = Math.max(1e6, Number(process.env.HOOT_SCAN_STDOUT_MAX) || 20e6);
+
+function killProcessTree(pid) {
+  if (!pid) return;
+  try {
+    if (process.platform === 'win32') {
+      execFile('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true }, () => {});
+    } else {
+      try { process.kill(-pid, 'SIGKILL'); } catch { try { process.kill(pid, 'SIGKILL'); } catch { /* ignore */ } }
+    }
+  } catch { /* ignore */ }
+}
+
+/**
+ * Run scanner.ps1 with hard timeout + stdout cap so a hung scan cannot starve the server forever.
+ * @param {string} [repoPath]
+ * @param {{ timeoutMs?: number }} [opts]
+ */
+function runScanner(repoPath, opts = {}) {
+  const timeoutMs = Number(opts.timeoutMs) > 0 ? Number(opts.timeoutMs) : SCAN_TIMEOUT_MS;
   return new Promise((resolve, reject) => {
     if (!fs.existsSync(FILES.scanner)) return reject(new Error('scanner.ps1 not found'));
-    const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', FILES.scanner, '-RepoPath', repoPath || process.cwd()], { windowsHide: true });
-    let out = '', err = '';
-    child.stdout.on('data', d => out += d.toString());
-    child.stderr.on('data', d => err += d.toString());
-    child.on('close', code => {
-      if (code !== 0) return reject(new Error(err || `scanner exited ${code}`));
-      try {
-        const parsed = normalizeScanShape(JSON.parse(out));
-        lastScan = parsed;
-        const keyHarvest = harvestFromScan(parsed);
-        parsed.key_vault = { imported: keyHarvest.count, keys: keyHarvest.keys };
-        const logPath = path.join(DIRS.logs, `scan-${nowStamp()}.json`);
-        const logPayload = { ...parsed, key_vault: { imported: keyHarvest.count, key_names: keyHarvest.keys.map(k => k.name) } };
-        fs.writeFileSync(logPath, JSON.stringify(logPayload, null, 2), 'utf8');
-        resolve(parsed);
-      } catch (e) { reject(new Error(`Failed to parse scanner JSON: ${e.message}\n${out.slice(0, 2000)}`)); }
+    const child = spawn(
+      'powershell.exe',
+      ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', FILES.scanner, '-RepoPath', repoPath || process.cwd()],
+      { windowsHide: true },
+    );
+    let out = '';
+    let err = '';
+    let settled = false;
+    let truncated = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      killProcessTree(child.pid);
+      reject(new Error(`scanner timed out after ${timeoutMs}ms — kill pid ${child.pid}; retry with HOOT_SCAN_TIMEOUT_MS or cached scan`));
+    }, timeoutMs);
+
+    const finish = (fn) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      fn();
+    };
+
+    child.stdout.on('data', (d) => {
+      if (out.length < SCAN_STDOUT_MAX) {
+        out += d.toString();
+        if (out.length >= SCAN_STDOUT_MAX) {
+          truncated = true;
+          out = out.slice(0, SCAN_STDOUT_MAX);
+        }
+      }
+    });
+    child.stderr.on('data', (d) => {
+      if (err.length < 200000) err += d.toString();
+    });
+    child.on('error', (e) => finish(() => reject(e)));
+    child.on('close', (code) => {
+      finish(() => {
+        if (code !== 0) return reject(new Error(err || `scanner exited ${code}`));
+        if (truncated) return reject(new Error(`scanner stdout exceeded ${SCAN_STDOUT_MAX} bytes`));
+        try {
+          const parsed = normalizeScanShape(JSON.parse(out));
+          lastScan = parsed;
+          const keyHarvest = harvestFromScan(parsed);
+          parsed.key_vault = { imported: keyHarvest.count, keys: keyHarvest.keys };
+          const logPath = path.join(DIRS.logs, `scan-${nowStamp()}.json`);
+          const logPayload = { ...parsed, key_vault: { imported: keyHarvest.count, key_names: keyHarvest.keys.map((k) => k.name) } };
+          fs.writeFileSync(logPath, JSON.stringify(logPayload, null, 2), 'utf8');
+          resolve(parsed);
+        } catch (e) {
+          reject(new Error(`Failed to parse scanner JSON: ${e.message}\n${out.slice(0, 2000)}`));
+        }
+      });
     });
   });
 }
@@ -1774,15 +1983,23 @@ function isHashedAssetPath(pathname) {
 function sendStaticFile(res, filePath, pathname) {
   const ext = path.extname(filePath).toLowerCase();
   const type = staticMime(ext);
-  const cacheControl = pathname === '/index.html' || pathname === '/'
-    ? 'no-cache, must-revalidate'
-    : (/\/assets\/.*-[A-Za-z0-9_-]+\.[a-z0-9]+$/i.test(pathname) ? 'public, max-age=31536000, immutable' : 'no-cache');
-  res.writeHead(200, {
+  // index.html must never stick after rebuild — old shells point at deleted chunk hashes
+  const isIndex = pathname === '/index.html' || pathname === '/';
+  const isImmutableAsset = /\/assets\/.*-[A-Za-z0-9_-]+\.[a-z0-9]+$/i.test(pathname);
+  const cacheControl = isIndex
+    ? 'no-store, no-cache, must-revalidate, max-age=0'
+    : (isImmutableAsset ? 'public, max-age=31536000, immutable' : 'no-cache');
+  const headers = {
     'Content-Type': type,
     'X-Content-Type-Options': 'nosniff',
     'Cache-Control': cacheControl,
     ...corsHeaders(),
-  });
+  };
+  if (isIndex) {
+    headers['Pragma'] = 'no-cache';
+    headers['Expires'] = '0';
+  }
+  res.writeHead(200, headers);
   res.end(fs.readFileSync(filePath));
 }
 
@@ -1906,7 +2123,7 @@ async function route(req, res) {
       const activeProj = active ? registry.projects.find((p) => path.normalize(p.path || '') === path.normalize(active)) : null;
       let tokenBurn = null;
       try {
-        tokenBurn = buildTokenBurnReport({ scan: lastScan, profiles, settings });
+        tokenBurn = buildTokenBurnReport({ scan: lastScan, profiles, settings, rtkStatus: getRtkStatus(ROOT) });
       } catch { /* optional */ }
       return send(res, 200, {
         version: 1,
@@ -1926,10 +2143,94 @@ async function route(req, res) {
             mirror: telemetryTargets(ROOT, activeProject).mirror,
           },
         },
+        providerRide: buildProviderRideReport({ scan: scan || lastScan }),
+        /** @deprecated use providerRide */
+        providerReach: buildProviderRideReport({ scan: scan || lastScan }),
+        brand: { name: 'H00T', subtitle: 'AI Command Center', title: 'H00T · AI Command Center', slug: 'h00t' },
       });
     }
+    if (pathName === '/api/providers/doctor' && req.method === 'GET') {
+      return send(res, 200, buildProviderRideReport({ scan: lastScan }));
+    }
+    if ((pathName === '/api/providers/ride/meta' || pathName === '/api/providers/reach/meta') && req.method === 'GET') {
+      return send(res, 200, { ok: true, ...providerRideHost.meta(), policy: providerRideHost.policyTable() });
+    }
+    if (pathName === '/api/providers/booth' && req.method === 'GET') {
+      return send(res, 200, { ok: true, catalog: providerRideHost.listBoothCatalog() });
+    }
+    if (pathName === '/api/providers/booth/open' && req.method === 'POST') {
+      // HITL: UI should only call after Approve; server still allowlist-only
+      const body = await readBody(req);
+      const dryRun = Boolean(body.dry_run || body.dryRun);
+      const result = await providerRideHost.openBooth(body.provider, body.target || 'account', { dryRun });
+      if (!result.ok) return send(res, 400, result);
+      try {
+        const { appendApprovalLog } = require('./coach-approval-log');
+        appendApprovalLog({
+          kind: 'booth.open',
+          provider: body.provider,
+          target: body.target || 'account',
+          url: result.url,
+          dry_run: dryRun,
+          approved: true,
+        });
+      } catch { /* optional */ }
+      return send(res, 200, result);
+    }
+    // ── ProviderRide credentials (AES-GCM; never return plaintext) ──
+    if (pathName === '/api/providers/credentials' && req.method === 'GET') {
+      return send(res, 200, {
+        ok: true,
+        brand: 'ProviderRide',
+        ...providerRideHost.credentialStatus(),
+        catalog: providerRideHost.credentialCatalog(),
+        items: providerRideHost.listCredentials(),
+        keyVault: typeof vaultSecurityStatus === 'function' ? vaultSecurityStatus() : null,
+      });
+    }
+    if (pathName === '/api/providers/credentials' && req.method === 'POST') {
+      const body = await readBody(req);
+      if (body.delete || body.action === 'delete') {
+        const result = providerRideHost.deleteCredential(body.provider, body.kind || 'api_key');
+        return send(res, result.ok ? 200 : 400, result);
+      }
+      if (!body.provider || !body.value) {
+        return send(res, 400, { ok: false, error: 'provider and value required' });
+      }
+      const result = providerRideHost.putCredential(
+        {
+          provider: body.provider,
+          kind: body.kind || 'api_key',
+          value: body.value,
+          source: body.source || 'api',
+          label: body.label,
+        },
+        {
+          // dual-write API keys into h00t launch vault so existing launch paths keep working
+          dualWrite: ({ envNames, value }) => {
+            for (const name of envNames || []) {
+              setVaultKey(name, value, 'provider-ride', { force: true });
+            }
+          },
+        },
+      );
+      // scrub any accidental value field
+      if (result && result.value) delete result.value;
+      try {
+        const { appendApprovalLog } = require('./coach-approval-log');
+        appendApprovalLog({
+          kind: 'credentials.put',
+          provider: body.provider,
+          slot: result.slot,
+          ok: result.ok,
+          dual_write: result.dual_write,
+        });
+      } catch { /* optional */ }
+      return send(res, result.ok ? 200 : 400, result);
+    }
+    // end ProviderRide routes
     if (pathName === '/api/onboarding' && req.method === 'GET') {
-      return send(res, 200, buildOnboardingPayload());
+      return send(res, 200, await buildOnboardingPayload());
     }
     if (pathName === '/api/onboarding' && req.method === 'POST') {
       const body = await readBody(req);
@@ -1937,26 +2238,26 @@ async function route(req, res) {
       if (action === 'run_scan') {
         const repo = body.repo || activeProject || process.cwd();
         const fresh = await runScanner(repo);
-        return send(res, 200, { ok: true, scan: attachCacheMeta(fresh, { cached: false, source: 'live' }), onboarding: buildOnboardingPayload() });
+        return send(res, 200, { ok: true, scan: attachCacheMeta(fresh, { cached: false, source: 'live' }), onboarding: await buildOnboardingPayload() });
       }
       if (action === 'discover_projects') {
         if (projectRegistryCache) projectRegistryCache.bust();
         const data = readProjectRegistry(true);
-        return send(res, 200, { ok: true, projects: data.projects, active: data.active, onboarding: buildOnboardingPayload() });
+        return send(res, 200, { ok: true, projects: data.projects, active: data.active, onboarding: await buildOnboardingPayload() });
       }
       if (action === 'set_project') {
         const data = setActiveProject(body.path);
-        return send(res, 200, { ok: true, active: data.active, projects: data.projects, onboarding: buildOnboardingPayload() });
+        return send(res, 200, { ok: true, active: data.active, projects: data.projects, onboarding: await buildOnboardingPayload() });
       }
       if (action === 'infer_layout') {
         const target = body.path || activeProject;
         if (!target) return send(res, 400, { error: 'No project path' });
         const saved = applyInferredRoots(target, { force: Boolean(body.force) });
-        return send(res, 200, { ok: true, roots: validateRoots(saved), onboarding: buildOnboardingPayload() });
+        return send(res, 200, { ok: true, roots: validateRoots(saved), onboarding: await buildOnboardingPayload() });
       }
       if (action === 'apply_layout') {
         const saved = putRoots(body, activeProject);
-        return send(res, 200, { ok: true, roots: validateRoots(saved), onboarding: buildOnboardingPayload() });
+        return send(res, 200, { ok: true, roots: validateRoots(saved), onboarding: await buildOnboardingPayload() });
       }
       if (action === 'apply_providers') {
         if (body.cooldowns?.length) {
@@ -1973,18 +2274,41 @@ async function route(req, res) {
           saveCooldownState(st);
         }
         try { syncTelemetryToDisk(telemetryCtx()); } catch { /* optional */ }
-        return send(res, 200, { ok: true, onboarding: buildOnboardingPayload() });
+        return send(res, 200, { ok: true, onboarding: await buildOnboardingPayload() });
+      }
+      if (action === 'set_local_brain') {
+        const live = await fetchLiveOllamaModels(loadUserSettings());
+        const model = String(body.model || body.ollama_model || '').trim()
+          || bestOperatorModelFromList(live.models || [])
+          || 'gemma4:latest';
+        const cur = loadUserSettings();
+        saveUserSettings({
+          hoot_brain: { mode: 'auto', ollama_model: model },
+          localInference: { preferredBackend: 'ollama' },
+          onboarding: { ...(cur.onboarding || {}), local_brain_done: true },
+        });
+        return send(res, 200, { ok: true, model, onboarding: await buildOnboardingPayload() });
+      }
+      if (action === 'pull_local_model') {
+        const model = String(body.model || 'gemma4:latest').trim();
+        const pull = startOllamaPull(model);
+        return send(res, 200, { ok: true, pull, onboarding: await buildOnboardingPayload() });
+      }
+      if (action === 'skip_local_brain') {
+        const cur = loadUserSettings();
+        saveUserSettings({ onboarding: { ...(cur.onboarding || {}), local_brain_done: true } });
+        return send(res, 200, { ok: true, onboarding: await buildOnboardingPayload() });
       }
       if (action === 'complete' || action === 'dismiss') {
         const patch = action === 'complete'
-          ? { onboarding: { completed: true, completed_at: new Date().toISOString(), dismissed_at: null } }
+          ? { onboarding: { completed: true, completed_at: new Date().toISOString(), dismissed_at: null, local_brain_done: true } }
           : { onboarding: { dismissed_at: new Date().toISOString() } };
         saveUserSettings(patch);
         if (body.inbound_handoff) {
           const parsed = parseInboundHandoff(body.inbound_handoff);
           if (parsed.ok && activeProject) writeInboundDraft(activeProject, parsed.draft);
         }
-        return send(res, 200, { ok: true, onboarding: buildOnboardingPayload() });
+        return send(res, 200, { ok: true, onboarding: await buildOnboardingPayload() });
       }
       return send(res, 400, { error: `Unknown onboarding action: ${action}` });
     }
@@ -2070,6 +2394,69 @@ async function route(req, res) {
       const latest = readJSON(FILES.handoffLatest, null);
       return send(res, 200, latest || { empty: true });
     }
+    // --- OKF packs (Open Knowledge Format-inspired knowledge bundles) ---
+    if (pathName === '/api/okf/packs' && req.method === 'GET') {
+      const roots = okfPack.defaultPackRoots(ROOT);
+      const packs = okfPack.listPackDirs(roots).map((row) => {
+        const v = okfPack.validatePack(row.path);
+        return {
+          name: row.name,
+          path: row.path,
+          root: row.root,
+          ok: v.ok,
+          version: v.pack?.version,
+          title: v.pack?.title,
+          concept_count: v.pack?.concept_count,
+          errors: v.errors,
+        };
+      });
+      return send(res, 200, { format: okfPack.FORMAT, packs, roots });
+    }
+    if (pathName === '/api/okf/validate' && req.method === 'POST') {
+      const body = await readBody(req);
+      const packPath = body.path || (body.name ? okfPack.resolvePackByName(body.name, ROOT) : null);
+      if (!packPath) return send(res, 400, { error: 'path or known name required' });
+      return send(res, 200, okfPack.validatePack(packPath));
+    }
+    if (pathName === '/api/okf/ingest' && req.method === 'POST') {
+      const body = await readBody(req);
+      const src = body.path || (body.name ? okfPack.resolvePackByName(body.name, ROOT) : null);
+      if (!src) return send(res, 400, { error: 'path or name required' });
+      try {
+        const result = okfPack.ingestPack(src, ROOT);
+        return send(res, 200, { ok: true, ...result });
+      } catch (e) {
+        return send(res, 400, { ok: false, error: e.message, validation: e.validation || null });
+      }
+    }
+    if (pathName === '/api/okf/concept' && req.method === 'GET') {
+      const name = url.searchParams.get('pack');
+      const id = url.searchParams.get('id');
+      if (!name || !id) return send(res, 400, { error: 'pack and id query required' });
+      const packPath = okfPack.resolvePackByName(name, ROOT);
+      if (!packPath) return send(res, 404, { error: 'pack not found' });
+      const concept = okfPack.getConcept(packPath, id);
+      if (!concept) return send(res, 404, { error: 'concept not found' });
+      return send(res, 200, concept);
+    }
+    if (pathName === '/api/okf/search' && req.method === 'GET') {
+      const name = url.searchParams.get('pack');
+      const q = url.searchParams.get('q') || '';
+      if (!name) return send(res, 400, { error: 'pack query required' });
+      const packPath = okfPack.resolvePackByName(name, ROOT);
+      if (!packPath) return send(res, 404, { error: 'pack not found' });
+      return send(res, 200, { pack: name, q, hits: okfPack.searchConcepts(packPath, q) });
+    }
+    if (pathName === '/api/okf/context' && req.method === 'GET') {
+      const name = url.searchParams.get('pack');
+      const q = url.searchParams.get('q') || '';
+      const max = Number(url.searchParams.get('max')) || 12;
+      if (!name) return send(res, 400, { error: 'pack query required' });
+      const packPath = okfPack.resolvePackByName(name, ROOT);
+      if (!packPath) return send(res, 404, { error: 'pack not found' });
+      const markdown = okfPack.contextSnippet(packPath, { maxConcepts: max, query: q });
+      return send(res, 200, { pack: name, markdown });
+    }
     if (pathName === '/api/session/bootstrap' && req.method === 'POST') {
       const body = await readBody(req);
       const results = { cooldowns: [], roots: null, handoff_import: null };
@@ -2104,24 +2491,27 @@ async function route(req, res) {
       const refresh = url.searchParams.get('refresh') === '1';
       let gainOverride = null;
       let refreshMeta = null;
-      if (refresh && lastScan?.tools?.rtk?.present) {
-        refreshMeta = await refreshRtkGain();
+      const rtkLive = getRtkStatus(ROOT);
+      if (refresh && rtkLive.present) {
+        refreshMeta = await refreshRtkGain(ROOT);
         if (refreshMeta.ok) gainOverride = refreshMeta.gain;
       }
       const profiles = listProfiles();
       const settings = loadUserSettings();
       const report = buildTokenBurnReport({
-        scan: lastScan,
+        scan: lastScan ? normalizeScanShape(lastScan) : lastScan,
         profiles,
         settings,
         gainOverride,
         agentRadar: lastAgentRadar,
+        rtkStatus: rtkLive,
       });
       return send(res, 200, { ...report, refresh: refreshMeta });
     }
     if (pathName === '/api/token-ledger' && req.method === 'GET') {
       const refresh = url.searchParams.get('refresh') === '1';
       const mode = url.searchParams.get('mode') === 'fast_recent' ? 'fast_recent' : 'full';
+      const footprint = url.searchParams.get('footprint') !== '0';
       let transactions = [];
       try {
         const client = getCoreClient();
@@ -2134,13 +2524,36 @@ async function route(req, res) {
         refresh,
         mode,
         transactions,
+        hootRoot: ROOT,
+        autoDiscover: footprint && refresh,
       });
       return send(res, 200, { ok: true, ...report });
+    }
+    if (pathName === '/api/token-ledger/discover' && req.method === 'POST') {
+      const discovered = discoverLedgerSources({ hootRoot: ROOT });
+      // Persist discovered codex-like roots into config for next full refresh
+      const extra = [];
+      for (const s of discovered.sources || []) {
+        if (!s.present || !s.enabled_default) continue;
+        for (const r of s.roots || []) extra.push(r);
+      }
+      if (extra.length) {
+        const cfg = loadConfig(FILES.tokenLedgerConfig);
+        const set = new Set((cfg.codex_roots || []).map((p) => path.normalize(p)));
+        const roots = [...(cfg.codex_roots || [])];
+        for (const r of extra) {
+          const n = path.normalize(r);
+          if (!set.has(n)) { set.add(n); roots.push(r); }
+        }
+        updateConfig(FILES.tokenLedgerConfig, { codex_roots: roots });
+      }
+      return send(res, 200, { ok: true, ...discovered });
     }
     if (pathName === '/api/token-ledger/config' && req.method === 'GET') {
       const config = loadConfig(FILES.tokenLedgerConfig);
       const discovered = discoverDefaultPaths();
-      return send(res, 200, { ok: true, config, discovered });
+      const footprint = discoverLedgerSources({ hootRoot: ROOT });
+      return send(res, 200, { ok: true, config, discovered, footprint });
     }
     if (pathName === '/api/token-ledger/config' && req.method === 'PUT') {
       const body = await readBody(req);
@@ -2155,6 +2568,7 @@ async function route(req, res) {
         cacheFile: FILES.tokenLedgerCache,
         refresh: true,
         importPayload: body,
+        hootRoot: ROOT,
       });
       return send(res, 200, { ok: true, ...report });
     }
@@ -2308,6 +2722,7 @@ async function route(req, res) {
           scan: lastScan,
           profiles: listProfiles(),
           settings: readJSON(FILES.userSettings, DEFAULT_USER_SETTINGS),
+          rtkStatus: getRtkStatus(ROOT),
         });
       } catch { /* optional */ }
       const live = lastAgentRadar
@@ -2327,7 +2742,7 @@ async function route(req, res) {
       const usage = readJSON(FILES.usage, { launches: [], outcomes: [] });
       let tokenBurn = null;
       try {
-        tokenBurn = buildTokenBurnReport({ scan: lastScan, profiles: listProfiles(), settings: readJSON(FILES.userSettings, DEFAULT_USER_SETTINGS) });
+        tokenBurn = buildTokenBurnReport({ scan: lastScan, profiles: listProfiles(), settings: readJSON(FILES.userSettings, DEFAULT_USER_SETTINGS), rtkStatus: getRtkStatus(ROOT) });
       } catch { /* optional */ }
       const live = lastAgentRadar
         ? {
@@ -2359,7 +2774,7 @@ async function route(req, res) {
       const usage = readJSON(FILES.usage, { launches: [], outcomes: [] });
       let tokenBurn = null;
       try {
-        tokenBurn = buildTokenBurnReport({ scan: lastScan, profiles: listProfiles(), settings: readJSON(FILES.userSettings, DEFAULT_USER_SETTINGS) });
+        tokenBurn = buildTokenBurnReport({ scan: lastScan, profiles: listProfiles(), settings: readJSON(FILES.userSettings, DEFAULT_USER_SETTINGS), rtkStatus: getRtkStatus(ROOT) });
       } catch { /* optional */ }
       const live = lastAgentRadar
         ? {
@@ -2692,7 +3107,12 @@ async function route(req, res) {
       return send(res, 200, buildMcpPayload());
     }
     if (pathName === '/api/keys' && req.method === 'GET') {
-      return send(res, 200, { keys: listMaskedKeys(), count: listMaskedKeys().length });
+      try { migrateVaultToEncrypted(); } catch { /* optional */ }
+      return send(res, 200, {
+        keys: listMaskedKeys(),
+        count: listMaskedKeys().length,
+        security: vaultSecurityStatus(),
+      });
     }
     if (pathName === '/api/keys' && req.method === 'POST') {
       const body = await readBody(req);
@@ -2770,6 +3190,160 @@ async function route(req, res) {
       const data = loadBenchResults(BENCH_CSV);
       return send(res, 200, { ok: data.validation?.ok ?? false, ...data.validation });
     }
+    // ── Vitals hub: model inventory, advise, repo integrations, HOOT RTK ──
+    if (pathName === '/api/vitals/models' && req.method === 'GET') {
+      const settings = loadUserSettings();
+      const mode = url.searchParams.get('mode') === 'exhaustive' ? 'exhaustive' : 'quick';
+      const inventory = await buildModelInventory({
+        hootRoot: ROOT,
+        settings,
+        scan: lastScan || getCachedScanResponse(),
+        listProfiles,
+        rtkStatus: getRtkStatus(ROOT),
+        mode,
+      });
+      return send(res, 200, { ok: true, ...inventory });
+    }
+    if (pathName === '/api/vitals/models/refresh' && req.method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      const settings = loadUserSettings();
+      const mode = body.mode === 'exhaustive' || body.exhaustive === true ? 'exhaustive' : 'quick';
+      const inventory = await buildModelInventory({
+        hootRoot: ROOT,
+        settings,
+        scan: lastScan || getCachedScanResponse(),
+        listProfiles,
+        rtkStatus: getRtkStatus(ROOT),
+        mode,
+      });
+      return send(res, 200, { ok: true, refreshed: true, ...inventory });
+    }
+    if (pathName === '/api/vitals/advise' && req.method === 'GET') {
+      const settings = loadUserSettings();
+      const mode = url.searchParams.get('mode') === 'exhaustive' ? 'exhaustive' : 'quick';
+      const inventory = await buildModelInventory({
+        hootRoot: ROOT,
+        settings,
+        scan: lastScan || getCachedScanResponse(),
+        listProfiles,
+        rtkStatus: getRtkStatus(ROOT),
+        mode,
+      });
+      return send(res, 200, { ok: true, ...buildVitalsAdvise(inventory) });
+    }
+    if (pathName === '/api/vitals/overview' && req.method === 'GET') {
+      const settings = loadUserSettings();
+      const rtk = getRtkStatus(ROOT);
+      const mode = url.searchParams.get('mode') === 'exhaustive' ? 'exhaustive' : 'quick';
+      const inventory = await buildModelInventory({
+        hootRoot: ROOT,
+        settings,
+        scan: lastScan || getCachedScanResponse(),
+        listProfiles,
+        rtkStatus: rtk,
+        mode,
+      });
+      const bench = loadBenchResults(BENCH_CSV);
+      const agents = await detectCodingAgents();
+      return send(res, 200, {
+        ok: true,
+        rtk,
+        inventory,
+        advise: buildVitalsAdvise(inventory),
+        bench: { rows: bench.rows, updated_at: bench.updated_at, validation: bench.validation },
+        agents,
+      });
+    }
+    // Detect-only: Claude Code, OmniRoute, ANTHROPIC_BASE_URL, OpenCode (no config writes)
+    if (pathName === '/api/vitals/agents' && req.method === 'GET') {
+      const agents = await detectCodingAgents();
+      return send(res, 200, { ok: true, ...agents });
+    }
+    if (pathName === '/api/vitals/integrations/scan' && req.method === 'POST') {
+      const body = await readBody(req);
+      const scope = body.scope || 'active';
+      const registry = readProjectRegistry();
+      const portfolioRoot = path.resolve(ROOT, '..');
+      const result = scanRepoIntegrations({
+        scope,
+        path: body.path || null,
+        activeProject,
+        portfolioRoot,
+        registryProjects: registry.projects || [],
+        hootRoot: ROOT,
+        rtkStatus: getRtkStatus(ROOT),
+        maxRepos: Number(body.maxRepos) || 40,
+      });
+      return send(res, 200, { ok: true, ...result });
+    }
+    if (pathName === '/api/vitals/rtk' && req.method === 'GET') {
+      return send(res, 200, { ok: true, ...getRtkStatus(ROOT) });
+    }
+    if (pathName === '/api/vitals/rtk/ensure' && req.method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      const result = await ensureRtkBundled(ROOT, { force: Boolean(body.force) });
+      return send(res, result.present ? 200 : 500, { ok: Boolean(result.present), ...result });
+    }
+    if (pathName === '/api/vitals/models/action' && req.method === 'POST') {
+      const body = await readBody(req);
+      const action = body.action;
+      const modelId = body.modelId || body.model_id;
+      if (!action || !modelId) return send(res, 400, { ok: false, error: 'action and modelId required' });
+      // Safe manage only in this slice — destructive ops require confirm + future doctor phase
+      if (action === 'set_llamacpp_model') {
+        if (!body.confirm) return send(res, 400, { ok: false, error: 'confirm:true required', risk: 'medium' });
+        const modelPath = body.path || body.modelPath || String(modelId).replace(/^gguf:/, '');
+        if (!fs.existsSync(modelPath)) return send(res, 404, { ok: false, error: 'GGUF path not found' });
+        const settings = saveUserSettings({
+          localInference: {
+            llamacpp: { enabled: true, modelPath },
+            preferredBackend: 'llamacpp',
+          },
+        });
+        return send(res, 200, { ok: true, action, modelPath, settings: settings.localInference });
+      }
+      if (action === 'set_ollama_preferred') {
+        if (!body.confirm) return send(res, 400, { ok: false, error: 'confirm:true required', risk: 'medium' });
+        const tag = body.tag || body.name || String(modelId).replace(/^ollama:/, '');
+        const settings = saveUserSettings({
+          localInference: { preferredBackend: 'ollama' },
+          hoot_brain: { ollama_model: tag },
+        });
+        return send(res, 200, { ok: true, action, tag, settings: { preferredBackend: settings.localInference.preferredBackend, ollama_model: settings.hoot_brain.ollama_model } });
+      }
+      if (action === 'quarantine_package') {
+        if (!body.confirm) return send(res, 400, { ok: false, error: 'confirm:true required', risk: 'high' });
+        const packagePath = body.path || body.packagePath || String(modelId).replace(/^stpkg:/, '');
+        const result = quarantinePackage(ROOT, packagePath, {
+          confirm: true,
+          reason: body.reason || 'operator quarantine from Vitals',
+        });
+        return send(res, result.ok ? 200 : 400, result);
+      }
+      if (action === 'restore_quarantine') {
+        if (!body.confirm) return send(res, 400, { ok: false, error: 'confirm:true required', risk: 'medium' });
+        const result = restoreQuarantine(ROOT, body.entryId || modelId, { confirm: true });
+        return send(res, result.ok ? 200 : 400, result);
+      }
+      return send(res, 400, { ok: false, error: `Unknown or blocked action: ${action}. Permanent delete is never exposed — use quarantine only.` });
+    }
+    if (pathName === '/api/vitals/safetensors' && req.method === 'GET') {
+      const settings = loadUserSettings();
+      const mode = url.searchParams.get('mode') === 'exhaustive' ? 'exhaustive' : 'quick';
+      const inventory = await buildModelInventory({
+        hootRoot: ROOT,
+        settings,
+        scan: lastScan || getCachedScanResponse(),
+        listProfiles,
+        rtkStatus: getRtkStatus(ROOT),
+        mode,
+      });
+      return send(res, 200, {
+        ok: true,
+        ...(inventory.safetensors || analyzeSafetensors(inventory.models || [])),
+        quarantine_log: loadQuarantineLog(ROOT),
+      });
+    }
     if (pathName === '/api/race' && req.method === 'POST') {
       const body = await readBody(req);
       const launched = [];
@@ -2785,9 +3359,42 @@ async function route(req, res) {
       return send(res, 200, { launched, count: launched.length });
     }
     if (pathName === '/api/coach/brain' && req.method === 'GET') {
-      const settings = loadUserSettings();
-      const brain = resolveHootBrain({ scan: lastScan, settings });
-      return send(res, 200, { brain, pull: getPullState(), scan: lastScan ? { ollama: lastScan.tools?.ollama, llamacpp: (lastScan.local_models?.backends || []).find(b => b.id === 'llamacpp') } : null });
+      let settings = loadUserSettings();
+      const live = await fetchLiveOllamaModels(settings);
+      const installed = live.ok ? live.models : [];
+      const mig = migrateBrainSettingsIfNeeded(settings, { scan: lastScan, installedModels: installed });
+      if (mig.migrated) {
+        settings = saveUserSettings({ hoot_brain: mig.settings.hoot_brain, localInference: mig.settings.localInference });
+      }
+      const brain = await resolveHootBrainAsync({ scan: lastScan, settings, autoPull: false });
+      const ready = Boolean(brain.available && brain.provider && brain.provider !== 'coach-local');
+      const hints = [];
+      if (!live.ok) {
+        hints.push('Ollama not reachable at configured host — run `ollama serve` or fix Settings → localInference.ollama.host');
+      } else if (!installed.length) {
+        hints.push(`No Ollama models — run \`ollama pull ${brain.model || 'gemma4:latest'}\``);
+      } else if (!ready) {
+        hints.push('Local brain not available — open Vitals or Onboarding to pick a model');
+      }
+      if (brain.pulling) hints.push(`Pulling ${brain.model}… retry chat in a minute`);
+      return send(res, 200, {
+        ok: true,
+        ready,
+        doctor: {
+          ready,
+          ollama_reachable: Boolean(live.ok),
+          model: brain.model || null,
+          configured_model: settings.hoot_brain?.ollama_model || null,
+          settings_mode: settings.hoot_brain?.mode || 'auto',
+          provider: brain.provider || null,
+          source: brain.source || null,
+          hints,
+        },
+        brain,
+        pull: getPullState(),
+        migrated: mig.migrated ? { reason: mig.reason, model: mig.model } : null,
+        scan: lastScan ? { ollama: lastScan.tools?.ollama, llamacpp: (lastScan.local_models?.backends || []).find(b => b.id === 'llamacpp') } : null,
+      });
     }
     if (pathName === '/api/coach/tools' && req.method === 'GET') {
       const settings = loadUserSettings();
@@ -2809,6 +3416,29 @@ async function route(req, res) {
       const data = loadApprovalLog(limit);
       const summary = summarizeApprovalLog(Math.max(limit, 200));
       return send(res, 200, { ...data, summary, phase4Ready: data.count >= 10 });
+    }
+    // Season C — client HITL timeline events (propose / deny)
+    if (pathName === '/api/coach/approvals/log' && req.method === 'POST') {
+      const body = await readBody(req);
+      const row = logHitlEvent(body || {});
+      return send(res, 200, { ok: true, entry: row });
+    }
+    if (pathName === '/api/coach/workflows' && req.method === 'GET') {
+      return send(res, 200, { ok: true, workflows: listWorkflows() });
+    }
+    if (pathName === '/api/coach/workflows/start' && req.method === 'POST') {
+      const body = await readBody(req);
+      const id = String(body.id || body.workflowId || '').trim();
+      const started = startWorkflow(id, { source: body.source || 'api' });
+      if (!started.ok) return send(res, 404, started);
+      logHitlEvent({
+        type: 'workflow',
+        decision: 'proposed',
+        source: 'workflow-start',
+        workflow: id,
+        label: started.workflow?.title,
+      });
+      return send(res, 200, started);
     }
     if (pathName === '/api/coach/graph/status' && req.method === 'GET') {
       const probe = await probeCoachGraph(COACH_GRAPH_BASE);
@@ -2864,7 +3494,7 @@ async function route(req, res) {
             error: result.error || null,
           });
         }
-        logCoachExecution(cmd, result);
+        logCoachExecution(cmd, result, { source: body.source || 'coach-execute', decision: 'approved' });
         results.push(result);
       }
       const last = results[results.length - 1] || {};
@@ -2961,7 +3591,7 @@ async function route(req, res) {
       const sessionList = [...sessions.values()].map(publicSession);
       const portfolio = { items: buildPortfolioHealth() };
       const settings = loadUserSettings();
-      const tokenBurn = buildTokenBurnReport({ scan: lastScan, profiles, settings, agentRadar: lastAgentRadar });
+      const tokenBurn = buildTokenBurnReport({ scan: lastScan, profiles, settings, agentRadar: lastAgentRadar, rtkStatus: getRtkStatus(ROOT) });
       const coreClient = getCoreClient();
       const coreProjectId = resolveCoreProjectId();
       const coreBudget = coreClient.getBudgets().projects?.[coreProjectId] || null;
@@ -2993,7 +3623,44 @@ async function route(req, res) {
   }
 }
 
-const __server = http.createServer(route);
+/**
+ * Safe HTTP handler: async route rejections always end the response (no silent hung sockets).
+ * /api/status stays inside route() with no I/O waits.
+ */
+function createHttpHandler() {
+  return (req, res) => {
+    const started = Date.now();
+    const pathForLog = (() => {
+      try { return new URL(req.url || '/', `http://${HOST}:${PORT}`).pathname; } catch { return req.url || '/'; }
+    })();
+    // Soft hung-request log (does not abort — handlers may legitimately run long e.g. chat)
+    const hangMs = Math.max(5000, Number(process.env.HOOT_REQUEST_HANG_LOG_MS) || 30000);
+    const hangTimer = setTimeout(() => {
+      if (!res.writableEnded) {
+        console.warn(`[hoot] slow request ${req.method} ${pathForLog} still open after ${hangMs}ms`);
+      }
+    }, hangMs);
+    const clearHang = () => clearTimeout(hangTimer);
+    res.on('finish', clearHang);
+    res.on('close', clearHang);
+
+    Promise.resolve()
+      .then(() => route(req, res))
+      .catch((err) => {
+        if (res.writableEnded) return;
+        try {
+          send(res, 500, {
+            error: err?.message || String(err),
+            path: pathForLog,
+            duration_ms: Date.now() - started,
+            stack: process.env.AGENTDOCK_DEBUG ? err?.stack : undefined,
+          });
+        } catch { /* ignore */ }
+      });
+  };
+}
+
+const __server = http.createServer(createHttpHandler());
 
 function startServer(port = PORT, host = HOST) {
   return new Promise((resolve, reject) => {
@@ -3011,6 +3678,10 @@ function startServer(port = PORT, host = HOST) {
     };
     __server.once('error', onError);
     __server.once('listening', onListening);
+    // Keep-alive defaults are fine; requestTimeout prevents forever-half-open sockets on modern Node
+    if (typeof __server.requestTimeout === 'number') {
+      __server.requestTimeout = Math.max(120000, Number(process.env.HOOT_HTTP_REQUEST_TIMEOUT_MS) || 300000);
+    }
     __server.listen(port, host);
   });
 }
@@ -3025,13 +3696,31 @@ if (require.main === module) {
       if (LAN_MODE) {
         console.log('LAN mode: other devices on your network can reach HOOT — enable token auth in Settings.');
       }
+      // HOOT-bundled RTK: provision into bin/ so token compression is preinstalled (not a second install)
+      ensureRtkBundled(ROOT).then((r) => {
+        if (r.present) console.log(`HOOT RTK ready (${r.source}): ${r.path}${r.version ? ` · ${r.version}` : ''}`);
+        else console.log(`HOOT RTK pending: ${r.message || r.error || 'not available'}`);
+      }).catch((e) => console.log(`HOOT RTK ensure failed: ${e.message}`));
+      // Local mascot brain: if cloud mode but Ollama has models, flip to auto + best model (gemma-first)
+      fetchLiveOllamaModels(loadUserSettings()).then((live) => {
+        const mig = migrateBrainSettingsIfNeeded(loadUserSettings(), {
+          scan: lastScan,
+          installedModels: live.ok ? live.models : [],
+        });
+        if (mig.migrated) {
+          saveUserSettings({ hoot_brain: mig.settings.hoot_brain, localInference: mig.settings.localInference });
+          console.log(`HOOT brain migrated: ${mig.reason}`);
+        }
+      }).catch(() => {});
       setTimeout(() => {
         moduleManager.maybeAutoSync(lastScan).then((r) => {
           if (r.ran) console.log(`Module auto-sync: ${JSON.stringify(r.results)}`);
         }).catch(() => {});
       }, 3000);
       setTimeout(() => {
-        runScanner(process.cwd()).catch(() => {});
+        runScanner(process.cwd())
+          .then(() => console.log('HOOT startup scan complete'))
+          .catch((e) => console.warn(`HOOT startup scan skipped/failed: ${e.message}`));
       }, 5000);
       try {
         syncTelemetryToDisk(telemetryCtx());

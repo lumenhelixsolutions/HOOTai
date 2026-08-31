@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { api } from "@/lib/api";
-import type { HootMood } from "@/lib/hoot-ascii";
-import { formatHootError, hootStatusFromContext, resolveHootMoodFromContext } from "@/lib/hoot-ascii";
-import { setHootErrorReporter } from "@/lib/hoot-bus";
+import type { HootMood } from '@/lib/h00t-ascii';
+import { formatHootError, hootStatusFromContext, resolveHootMoodFromContext } from '@/lib/h00t-ascii';
+import { setHootErrorReporter } from '@/lib/h00t-bus';
 import { isPageVisible } from "@/lib/perf";
 import { productionFieldsFromRadar } from "@/lib/production-radar";
 import { slimCoachPageContext } from "@/lib/coach-context-slim";
@@ -363,8 +363,8 @@ export function CoachProvider({ children }: { children: ReactNode }) {
     setCoachOpen(true);
     queueChatPrompt(
       err.fix
-        ? `HOOT — I hit an error during ${err.source}: ${err.message.slice(0, 300)}. ${err.fix}`
-        : `HOOT — help me fix this ${err.source} error: ${err.message.slice(0, 300)}`,
+        ? `H00T — I hit an error during ${err.source}: ${err.message.slice(0, 300)}. ${err.fix}`
+        : `H00T — help me fix this ${err.source} error: ${err.message.slice(0, 300)}`,
     );
   }, [queueChatPrompt]);
 
@@ -416,6 +416,6 @@ export function CoachProvider({ children }: { children: ReactNode }) {
 
 export function useCoach() {
   const ctx = useContext(CoachContext);
-  if (!ctx) throw new Error("useCoach must be used within CoachProvider");
+  if (!ctx) throw new Error('useCoach must be used within CoachProvider');
   return ctx;
 }

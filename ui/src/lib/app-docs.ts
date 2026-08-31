@@ -44,7 +44,7 @@ export const VIEW_DOCS: Record<string, ViewDoc> = {
 
 export function getViewDoc(path: string): ViewDoc {
   return VIEW_DOCS[path] || {
-    title: "HOOT",
+    title: "H00T",
     group: "Command Center",
     summary: "Local AI command center — scan, launch, monitor, and hand off across providers.",
     features: ["Use sidebar navigation", "Ctrl+K command palette", "Ask the AI Coach on any screen"],

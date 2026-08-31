@@ -8,10 +8,11 @@ const { enrichRegistry } = require('./provider-cooldown');
 
 const STEPS = [
   { id: 'scan', title: 'System scan', summary: 'Detect agents, models, keys, and machine posture.' },
-  { id: 'project', title: 'Active project', summary: 'Pick the repo HOOT should anchor launches and handoffs to.' },
+  { id: 'local_brain', title: 'Local brain', summary: 'Pick the Ollama model for the H00T mascot (gemma4 preferred when installed).' },
+  { id: 'project', title: 'Active project', summary: 'Pick the repo H00T should anchor launches and handoffs to.' },
   { id: 'layout', title: 'Workspace layout', summary: 'Confirm app / core / data trees inferred from the project folder.' },
-  { id: 'providers', title: 'Provider matrix', summary: 'Mark cooldowns and choose your session provider.' },
-  { id: 'ready', title: 'Ready', summary: 'Optional handoff import — then enter the command center.' },
+  { id: 'providers', title: 'ProviderRide', summary: 'ProviderRide doctor matrix — mark cooldowns, session provider, sealed credentials, and optional Account Booth targets.' },
+  { id: 'ready', title: 'Ready', summary: 'Optional handoff import — then enter the AI Command Center.' },
 ];
 
 const CODER_TO_PROVIDER = {
@@ -45,9 +46,10 @@ function suggestSessionProvider(scan, cooldownRegistry) {
   return 'ollama';
 }
 
-function buildChecks({ scan, activeProject, rootsValidated, settings, cooldownRegistry }) {
+function buildChecks({ scan, activeProject, rootsValidated, settings, cooldownRegistry, localBrain }) {
   return {
     scan: scanReady(scan),
+    local_brain: Boolean(localBrain?.ready || settings?.onboarding?.local_brain_done),
     project: Boolean(activeProject),
     layout: Boolean(rootsValidated?.roots?.length && rootsValidated.roots.some((r) => r.valid)),
     providers: Boolean(cooldownRegistry?.current_session_provider),
@@ -58,6 +60,7 @@ function buildChecks({ scan, activeProject, rootsValidated, settings, cooldownRe
 function resolveCurrentStep(checks) {
   if (checks.completed) return 'ready';
   if (!checks.scan) return 'scan';
+  if (!checks.local_brain) return 'local_brain';
   if (!checks.project) return 'project';
   if (!checks.layout) return 'layout';
   if (!checks.providers) return 'providers';
@@ -73,9 +76,17 @@ function buildOnboardingState({
   rootsValidated,
   portfolioRoots,
   cooldownRaw,
+  localBrain = null,
 }) {
   const cooldown = enrichRegistry(cooldownRaw || { providers: {}, version: 1 }, { scan });
-  const checks = buildChecks({ scan, activeProject, rootsValidated, settings, cooldownRegistry: cooldown });
+  const checks = buildChecks({
+    scan,
+    activeProject,
+    rootsValidated,
+    settings,
+    cooldownRegistry: cooldown,
+    localBrain,
+  });
   const currentStep = resolveCurrentStep(checks);
   const inferred = activeProject ? inferRootsFromProject(activeProject) : null;
 
@@ -99,6 +110,7 @@ function buildOnboardingState({
           rtk: Boolean(scan?.tools?.rtk?.present),
         }
       : null,
+    local_brain: localBrain,
     projects: {
       active: activeProject,
       count: registry?.projects?.length || 0,

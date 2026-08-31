@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { useCoach } from "@/context/CoachContext";
-import { hootSignal } from "@/lib/hoot-signals";
+import { hootSignal } from "@/lib/h00t-signals";
 import {
   Box, Puzzle, Server, Wrench, Search, Loader2, AlertCircle,
   Download, CheckCircle2, Copy, RefreshCw, Play, ChevronDown, Package, Zap, FolderOpen,
@@ -171,7 +171,7 @@ export default function ModulesPage() {
     try {
       const r = await api.installModule(mod.id, target);
       setInstallLog(r.output || r.error || (r.manual ? r.command : "done"));
-      toast.showToast(r.manual ? "Manual step required — see log" : "Install step complete", r.ok ? "success" : "warning");
+      toast.showToast(r.manual ? "Manual step required ΓÇö see log" : "Install step complete", r.ok ? "success" : "warning");
       if (r.ok) setPageContext(hootSignal("module:ready", 4000));
       else if (!r.manual) setPageContext(hootSignal("module:install-fail", 4000));
       await load();
@@ -215,7 +215,7 @@ export default function ModulesPage() {
     setExpanded(skill.id);
     setSkillContent(null);
     if (!skill.cached) {
-      setSkillContent("Not cached — run Sync or Full setup on Compound Engineering pack.");
+      setSkillContent("Not cached ΓÇö run Sync or Full setup on Compound Engineering pack.");
       return;
     }
     try {
@@ -230,7 +230,7 @@ export default function ModulesPage() {
     return (
       <div style={{ padding: 60, textAlign: "center", opacity: 0.5 }}>
         <Loader2 size={32} style={{ marginBottom: 12, animation: "spin 1s linear infinite" }} />
-        <p>Loading module registry…</p>
+        <p>Loading module registryΓÇª</p>
       </div>
     );
   }
@@ -250,7 +250,7 @@ export default function ModulesPage() {
         <Puzzle size={24} color="#ffb042" />
         <h1 style={{ fontSize: 20, fontWeight: 400, margin: 0 }}>Module Manager v2</h1>
         <span style={{ fontSize: 12, opacity: 0.45, marginLeft: "auto" }}>
-          detect · install · load · auto-sync
+          detect ┬╖ install ┬╖ load ┬╖ auto-sync
         </span>
       </div>
 
@@ -273,7 +273,7 @@ export default function ModulesPage() {
             <div>
               <div style={{ fontSize: 11, color: "#fcd34d", marginBottom: 6 }}>MCP servers ({prefab.counts?.mcp_servers || prefab.prefab.mcp_servers?.length || 0})</div>
               {(prefab.prefab.mcp_servers || []).map((m: { id: string; name: string; default_enabled?: boolean }) => (
-                <div key={m.id} style={{ fontSize: 12, opacity: 0.85 }}>{m.name}{m.default_enabled ? " · on" : " · opt-in"}</div>
+                <div key={m.id} style={{ fontSize: 12, opacity: 0.85 }}>{m.name}{m.default_enabled ? " ┬╖ on" : " ┬╖ opt-in"}</div>
               ))}
             </div>
           </div>
@@ -286,16 +286,16 @@ export default function ModulesPage() {
             <div style={{ fontSize: 13, fontWeight: 500, color: "#93c5fd" }}>Compound Engineering</div>
             <div style={{ fontSize: 11, opacity: 0.65, marginTop: 4 }}>
               Catalog {cePack.version}
-              {cePack.upstream?.tag && ` · upstream ${cePack.upstream.tag}`}
-              {cePack.version_behind && " · update available"}
-              {cePack.sync_stale && " · cache stale"}
+              {cePack.upstream?.tag && ` ┬╖ upstream ${cePack.upstream.tag}`}
+              {cePack.version_behind && " ┬╖ update available"}
+              {cePack.sync_stale && " ┬╖ cache stale"}
             </div>
             <div style={{ fontSize: 10, opacity: 0.45, marginTop: 4, fontFamily: "'GeistMono', monospace" }}>
-              Claude {cePack.detection?.claude_plugin ? "●" : "○"} · Codex skills {cePack.detection?.codex_skills ? "●" : "○"} · agents {cePack.detection?.codex_agents ? "●" : "○"}
+              Claude {cePack.detection?.claude_plugin ? "ΓùÅ" : "Γùï"} ┬╖ Codex skills {cePack.detection?.codex_skills ? "ΓùÅ" : "Γùï"} ┬╖ agents {cePack.detection?.codex_agents ? "ΓùÅ" : "Γùï"}
             </div>
           </div>
           <button type="button" disabled={busy === "full-compound-engineering"} onClick={() => fullSetup(cePack)} style={{ padding: "10px 16px", borderRadius: 8, border: "1px solid rgba(74,222,128,0.3)", background: "rgba(74,222,128,0.1)", color: "#4ade80", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
-            <Zap size={14} /> {busy === "full-compound-engineering" ? "Running…" : "Full setup"}
+            <Zap size={14} /> {busy === "full-compound-engineering" ? "RunningΓÇª" : "Full setup"}
           </button>
           <button type="button" onClick={toggleAutoSync} style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: autoSync.enabled ? "rgba(255,176,66,0.1)" : "transparent", color: autoSync.enabled ? "#ffb042" : "#888", cursor: "pointer", fontSize: 11 }}>
             Auto-sync {autoSync.enabled ? "on" : "off"} ({autoSync.interval_days}d)
@@ -355,7 +355,7 @@ export default function ModulesPage() {
         <>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
             <Search size={14} opacity={0.5} />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search CE skills…" style={{ flex: 1, padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", color: "#f5f5f5", fontSize: 13 }} />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search CE skillsΓÇª" style={{ flex: 1, padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", color: "#f5f5f5", fontSize: 13 }} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
             {filteredSkills.map((skill) => (
@@ -366,7 +366,7 @@ export default function ModulesPage() {
                     {skill.cached ? "cached" : "metadata"}
                   </span>
                 </div>
-                <div style={{ fontSize: 11, opacity: 0.55, marginTop: 4 }}>{skill.description?.slice(0, 90)}…</div>
+                <div style={{ fontSize: 11, opacity: 0.55, marginTop: 4 }}>{skill.description?.slice(0, 90)}ΓÇª</div>
               </button>
             ))}
           </div>

@@ -92,6 +92,47 @@ function readAllowedExcerpt(hootRoot, relPath, max = MAX_EXCERPT) {
   }
 }
 
+/**
+ * Optional read-only Obsidian vault excerpts (Season C4).
+ * Never writes. Paths must stay under vault root.
+ */
+function readVaultContext(settings = {}) {
+  const op = settings.operator_policy || {};
+  if (op.vault_context === false) return null;
+  const vaultRoot = String(
+    op.vault_path
+    || process.env.HOOT_VAULT_PATH
+    || path.join('D:', 'akashic'),
+  );
+  if (!vaultRoot || !fs.existsSync(vaultRoot)) {
+    return { enabled: true, present: false, root: vaultRoot, notes: [] };
+  }
+  const candidates = [
+    'README.md',
+    path.join('_system', 'Vault Map.md'),
+    path.join('_system', 'Operating Modes.md'),
+    'CLAUDE.md',
+  ];
+  const notes = [];
+  for (const rel of candidates) {
+    const abs = path.resolve(vaultRoot, rel);
+    if (!abs.startsWith(path.resolve(vaultRoot))) continue;
+    if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) continue;
+    try {
+      const text = fs.readFileSync(abs, 'utf8');
+      notes.push({ path: rel.replace(/\\/g, '/'), excerpt: truncate(text, 700) });
+    } catch { /* skip */ }
+    if (notes.length >= 3) break;
+  }
+  return {
+    enabled: true,
+    present: true,
+    root: vaultRoot,
+    policy: 'read-only',
+    notes,
+  };
+}
+
 async function gatherOperatorContext({ hootRoot, activeProject, settings = {} }) {
   const filesystem = [];
   const defaultReads = ['memory.md', 'state/projects.json'];
@@ -104,12 +145,18 @@ async function gatherOperatorContext({ hootRoot, activeProject, settings = {} })
   const repo = activeProject || settings?.activeProject || null;
   if (repo) git = await gitSnapshot(repo);
 
+  let vault = null;
+  try {
+    vault = readVaultContext(settings);
+  } catch { /* optional */ }
+
   return {
     policy: 'read-only',
     hootRoot,
     activeRepo: repo || null,
     git,
     filesystem,
+    vault,
     truncated: true,
   };
 }
@@ -157,6 +204,7 @@ module.exports = {
   readAllowedExcerpt,
   gitSnapshot,
   gatherOperatorContext,
+  readVaultContext,
   listOperatorTools,
   truncate,
 };

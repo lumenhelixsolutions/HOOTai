@@ -8,6 +8,8 @@ const {
   benchScoreAdjustment,
   applyBenchToProfile,
   validateBenchCsv,
+  mergeBenchRows,
+  formatBenchCsv,
 } = require('../bench-results');
 
 const SAMPLE = `model,status,latency_ms,tokens_per_sec,note
@@ -78,5 +80,21 @@ llamacpp:demo.gguf,pass,800,12.1,"llama-bench",llamacpp`);
     const out = applyBenchToProfile(base, profile, { rows });
     assert.strictEqual(out.score, 75);
     assert.strictEqual(out.bench, undefined);
+  });
+
+  it('merges ollama and llamacpp rows without wiping', () => {
+    const existing = parseBenchCsv(SAMPLE);
+    const incoming = parseBenchCsv(`model,status,latency_ms,tokens_per_sec,note,backend
+llamacpp:gguf,missing,0,0,"no model",llamacpp
+phi3:mini,pass,900,30.0,"OK",ollama`);
+    const merged = mergeBenchRows(existing, incoming);
+    assert.strictEqual(merged.length, 3);
+    const phi = findBenchRow(merged, 'phi3:mini');
+    assert.strictEqual(phi.tokens_per_sec, 30);
+    assert.ok(findBenchRow(merged, 'llamacpp:gguf'));
+    assert.ok(findBenchRow(merged, 'qwen2.5:1.5b'));
+    const csv = formatBenchCsv(merged);
+    assert.ok(csv.includes('backend'));
+    assert.ok(csv.includes('llamacpp:gguf'));
   });
 });

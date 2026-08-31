@@ -9,6 +9,7 @@ import ContextRadar from "@/components/deck/ContextRadar";
 import HandoffConsole from "@/components/deck/HandoffConsole";
 import TelemetryHealth from "@/components/deck/TelemetryHealth";
 import DeckCompactRadial from "@/components/deck/DeckCompactRadial";
+import ProviderRidePanel from "@/components/deck/ProviderRidePanel";
 import { useDeckPopout } from "@/components/deck/popout";
 import HoverTip, { TipIcon } from "@/components/HoverTip";
 
@@ -56,6 +57,8 @@ export default function CommandDeckPage() {
       </div>
 
       <MatrixTicker registry={registry} />
+
+      <ProviderRidePanel />
 
       <Panel title="Provider gauges" subtitle="Live cooldown matrix · click a gauge's actions to mark status" icon={Gauge} action={<TipIcon id="deck.gauge.provider" />}>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">

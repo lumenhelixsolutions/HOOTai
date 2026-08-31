@@ -72,7 +72,7 @@ export default function ActivitySessionCards({
                   {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                   <span style={{ fontSize: 12, fontWeight: 600 }}>{g.agent_name || "Unknown agent"}</span>
                   <span style={{ fontSize: 9, letterSpacing: "0.08em", textTransform: "uppercase", opacity: 0.45 }}>
-                    {g.kind === "hoot" ? "HOOT launch" : g.source === "agentdock" ? "Dock" : "External"}
+                    {g.kind === "hoot" ? "H00T launch" : g.source === "agentdock" ? "Dock" : "External"}
                   </span>
                   {g.running && (
                     <span style={{ fontSize: 9, color: "#4ade80", letterSpacing: "0.08em", textTransform: "uppercase" }}>running</span>

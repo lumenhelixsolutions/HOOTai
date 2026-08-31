@@ -41,7 +41,8 @@ class LocalModelAdapter extends BaseProvider {
       throw new ProviderError(err.message, this.id, err);
     }
     if (json.error) throw new ProviderError(json.error.message || JSON.stringify(json.error), this.id);
-    const text = json.choices?.[0]?.message?.content || '';
+    const choice = json.choices?.[0];
+    const text = choice?.message?.content || choice?.text || '';
     const usage = this.normalizeUsage(json.usage, { prompt, responseText: text });
     return {
       text,

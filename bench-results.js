@@ -119,6 +119,48 @@ function loadBenchResults(csvPath = DEFAULT_CSV) {
   return { path: csvPath, rows, updated_at, validation };
 }
 
+/** Merge bench rows by model (case-insensitive). New rows win. */
+function mergeBenchRows(existingRows = [], newRows = []) {
+  const map = new Map();
+  for (const row of existingRows) {
+    if (!row?.model) continue;
+    map.set(String(row.model).toLowerCase(), normalizeBenchRow(row));
+  }
+  for (const row of newRows) {
+    if (!row?.model) continue;
+    map.set(String(row.model).toLowerCase(), normalizeBenchRow(row));
+  }
+  return [...map.values()];
+}
+
+function formatBenchCsv(rows = []) {
+  const header = 'model,status,latency_ms,tokens_per_sec,note,backend';
+  const lines = rows.map((r) => {
+    const note = String(r.note || '').replace(/"/g, '""');
+    return [
+      r.model,
+      r.status || 'unknown',
+      Number(r.latency_ms) || 0,
+      Number(r.tokens_per_sec) || 0,
+      `"${note}"`,
+      r.backend || 'ollama',
+    ].join(',');
+  });
+  return `${header}\n${lines.join('\n')}${lines.length ? '\n' : ''}`;
+}
+
+/**
+ * Write new bench rows merged with any existing CSV so Ollama and llama.cpp
+ * runs do not wipe each other.
+ */
+function writeMergedBenchCsv(newRows, csvPath = DEFAULT_CSV) {
+  const existing = fs.existsSync(csvPath) ? parseBenchCsv(fs.readFileSync(csvPath, 'utf8')) : [];
+  const merged = mergeBenchRows(existing, newRows);
+  fs.mkdirSync(path.dirname(csvPath), { recursive: true });
+  fs.writeFileSync(csvPath, formatBenchCsv(merged), 'utf8');
+  return loadBenchResults(csvPath);
+}
+
 function modelVariants(name) {
   const base = String(name || '').trim().toLowerCase();
   if (!base) return [];
@@ -171,7 +213,8 @@ function applyBenchToProfile(evalResult, profile, benchData) {
 
 function runBenchScript(models = [], csvPath = DEFAULT_CSV, options = {}) {
   return new Promise((resolve, reject) => {
-    const args = [BENCH_SCRIPT, ...models, '--out', csvPath];
+    // Scripts write with merge when --out is set; also re-merge here as a safety net.
+    const args = [BENCH_SCRIPT, ...models, '--out', csvPath, '--merge'];
     const ollamaHost = resolveOllamaBaseUrl(options.ollamaHost || process.env.OLLAMA_HOST);
     const child = spawn(process.execPath, args, {
       cwd: __dirname,
@@ -192,7 +235,7 @@ function runBenchScript(models = [], csvPath = DEFAULT_CSV, options = {}) {
 
 function runLlamaCppBenchScript(csvPath = DEFAULT_CSV, modelPath = null) {
   return new Promise((resolve, reject) => {
-    const args = [LLAMACPP_BENCH_SCRIPT, '--out', csvPath];
+    const args = [LLAMACPP_BENCH_SCRIPT, '--out', csvPath, '--merge'];
     if (modelPath) args.push('--model', modelPath);
     const child = spawn(process.execPath, args, { cwd: __dirname, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
@@ -214,6 +257,9 @@ module.exports = {
   parseBenchCsv,
   validateBenchCsv,
   loadBenchResults,
+  mergeBenchRows,
+  formatBenchCsv,
+  writeMergedBenchCsv,
   findBenchRow,
   benchScoreAdjustment,
   applyBenchToProfile,

@@ -40,13 +40,31 @@ function mapProvider(provider) {
   return PROVIDER_MAP[key] || key;
 }
 
-async function ensureFreshPricing(client) {
+const LOCAL_PROVIDERS = new Set(['ollama', 'llamacpp', 'lmstudio', 'lm-studio', 'local', 'custom']);
+
+function isLocalMappedProvider(provider) {
+  const key = String(provider || '').toLowerCase();
+  return LOCAL_PROVIDERS.has(key) || LOCAL_PROVIDERS.has(mapProvider(key));
+}
+
+/**
+ * Refresh OpenRouter pricing when stale. Local brains skip network by default so
+ * chat never blocks on openrouter.ai (OOTBIJS: local golden path must work offline).
+ */
+async function ensureFreshPricing(client, { skipNetwork = false, timeoutMs = 2500 } = {}) {
   const coreDir = client.coreDir || resolveCoreDir();
   const pricing = loadPricing(coreDir);
-  if (!isStale(pricing)) return pricing;
-  const result = await refreshPricing(coreDir);
-  if (result.pricing) client.gateway.pricing = result.pricing;
-  return result.pricing || pricing;
+  if (skipNetwork || !isStale(pricing)) return pricing;
+  try {
+    const result = await Promise.race([
+      refreshPricing(coreDir),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('pricing refresh timeout')), timeoutMs)),
+    ]);
+    if (result?.pricing) client.gateway.pricing = result.pricing;
+    return result?.pricing || pricing;
+  } catch {
+    return pricing;
+  }
 }
 
 /**
@@ -76,7 +94,7 @@ async function mediatedLlmCall({
   const projectId = resolveProjectId(projectRef);
   const mappedProvider = mapProvider(provider);
 
-  await ensureFreshPricing(coreClient);
+  await ensureFreshPricing(coreClient, { skipNetwork: isLocalMappedProvider(provider) || isLocalMappedProvider(mappedProvider) });
 
   const modelConfig = {
     provider: mappedProvider,
@@ -135,7 +153,9 @@ async function mediatedRawCall(params = {}) {
   const projectId = resolveProjectId(params.projectRef);
   const mappedProvider = mapProvider(params.provider);
 
-  await ensureFreshPricing(coreClient);
+  await ensureFreshPricing(coreClient, {
+    skipNetwork: isLocalMappedProvider(params.provider) || isLocalMappedProvider(mappedProvider),
+  });
 
   try {
     const response = await coreClient.gateway.execute(
@@ -187,6 +207,7 @@ async function mediatedRawCall(params = {}) {
 module.exports = {
   resolveProjectId,
   mapProvider,
+  isLocalMappedProvider,
   mediatedLlmCall,
   mediatedRawCall,
   ensureFreshPricing,

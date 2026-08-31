@@ -75,22 +75,22 @@ function listShellHeavyAgents(scan) {
     .map((c) => ({ id: c.id, name: c.name, command: c.command }));
 }
 
-function buildRecommendations({ rtkPresent, wslPresent, rtkProfiles, shellAgents, gain, settings }) {
+function buildRecommendations({ rtkPresent, wslPresent, rtkProfiles, shellAgents, gain, settings, rtkPath }) {
   const recs = [];
   if (!rtkPresent) {
     recs.push({
-      id: 'install-rtk',
+      id: 'ensure-hoot-rtk',
       priority: 90,
-      title: 'Install RTK in WSL',
-      detail: 'Shell-heavy agents burn tokens on raw git/test/eslint output. RTK compresses before context.',
-      action: 'settings',
+      title: 'Ensure HOOT RTK (preinstalled — not a second install)',
+      detail: 'HOOT ships RTK under HootAi/bin. Open Vitals → Ensure HOOT RTK to provision the binary.',
+      action: 'vitals',
     });
   } else if (!wslPresent && process.platform === 'win32') {
     recs.push({
       id: 'wsl-rtk-hooks',
-      priority: 75,
-      title: 'Enable WSL for full RTK hooks',
-      detail: 'Native Windows limits auto-rewrite. WSL + rtk init -g gives full savings.',
+      priority: 55,
+      title: 'Optional: WSL for full IDE auto-hooks',
+      detail: `HOOT RTK is present${rtkPath ? ` at ${rtkPath}` : ''}. Native Windows uses explicit rtk <cmd>; full Claude/Cursor hooks work best in WSL.`,
       action: 'settings',
     });
   }
@@ -99,8 +99,8 @@ function buildRecommendations({ rtkPresent, wslPresent, rtkProfiles, shellAgents
       id: 'rtk-profiles-blocked',
       priority: 85,
       title: `${rtkProfiles.length} profile(s) expect RTK`,
-      detail: rtkProfiles.map((p) => p.name).slice(0, 3).join(', '),
-      action: 'profiles',
+      detail: 'HOOT prepends bin/ on launch — ensure RTK via Vitals if still missing.',
+      action: 'vitals',
     });
   }
   if (rtkPresent && !gain.has_data) {
@@ -108,7 +108,7 @@ function buildRecommendations({ rtkPresent, wslPresent, rtkProfiles, shellAgents
       id: 'rtk-no-gain-yet',
       priority: 55,
       title: 'No RTK savings logged yet',
-      detail: 'Run agent sessions with RTK hooks, then refresh burn stats.',
+      detail: 'Run agent sessions with RTK (HOOT bin on PATH), then refresh burn stats.',
       action: 'refresh',
     });
   }
@@ -138,31 +138,38 @@ function assessBurnRisk({ rtkPresent, wslPresent, rtkProfiles, shellAgents, gain
 
   if (!rtkPresent && (rtkProfiles.length > 0 || shellAgents.length >= 2)) {
     level = 'high';
-    reasons.push('RTK missing while shell-heavy agents or RTK-tagged profiles are active');
+    reasons.push('HOOT RTK not active yet while shell-heavy agents or RTK-tagged profiles are present — open Vitals → Ensure HOOT RTK');
   } else if (!rtkPresent && shellAgents.length > 0) {
     level = 'medium';
-    reasons.push('RTK not installed — agent shell output may inflate token burn');
+    reasons.push('HOOT RTK binary not detected — provision from Vitals (preinstalled, not a separate install)');
   } else if (rtkPresent && !wslPresent && process.platform === 'win32') {
-    level = 'medium';
-    reasons.push('RTK on Windows without WSL — auto-rewrite hooks are limited');
+    level = 'low';
+    reasons.push('HOOT RTK ready on native Windows — use rtk <cmd>; optional WSL for full IDE hooks');
   } else if (gain.has_data && gain.summary) {
     level = 'low';
-    reasons.push(`RTK prevented ~${formatTokens(gain.summary.total_saved)} tokens from reaching agents`);
+    reasons.push(`HOOT RTK prevented ~${formatTokens(gain.summary.total_saved)} tokens from reaching agents`);
   } else if (rtkPresent) {
     level = 'low';
-    reasons.push('RTK installed — run sessions to accumulate savings data');
+    reasons.push('HOOT RTK ready (bundled) — run sessions to accumulate savings data');
   } else {
     level = 'medium';
-    reasons.push('Install RTK before long Claude/Codex sessions');
+    reasons.push('Ensure HOOT RTK from Vitals before long Claude/Codex sessions');
   }
 
   return { level, reasons };
 }
 
-function buildTokenBurnReport({ scan = null, profiles = [], settings = {}, gainOverride = null, agentRadar = null } = {}) {
+function buildTokenBurnReport({ scan = null, profiles = [], settings = {}, gainOverride = null, agentRadar = null, rtkStatus = null } = {}) {
   const te = scan?.token_efficiency || {};
   const rtkTool = scan?.tools?.rtk || {};
-  const rtkPresent = Boolean(te.rtk?.present ?? rtkTool.present);
+  // Prefer live HOOT-bundled RTK status (bin/) over stale scan PATH probes
+  const rtkPresent = Boolean(
+    rtkStatus?.present
+    || te.rtk?.present
+    || rtkTool.present,
+  );
+  const rtkPath = rtkStatus?.path || te.rtk?.path || rtkTool.path || null;
+  const rtkVersion = rtkStatus?.version || te.rtk?.version || rtkTool.version || null;
   const wsl = {
     present: Boolean(te.wsl?.present ?? scan?.tools?.wsl?.present),
     full_hooks: Boolean(te.wsl?.full_hooks),
@@ -188,6 +195,7 @@ function buildTokenBurnReport({ scan = null, profiles = [], settings = {}, gainO
     shellAgents,
     gain,
     settings,
+    rtkPath,
   });
 
   return {
@@ -196,8 +204,11 @@ function buildTokenBurnReport({ scan = null, profiles = [], settings = {}, gainO
     prevention: {
       rtk: {
         present: rtkPresent,
-        version: te.rtk?.version || rtkTool.version || null,
-        path: rtkTool.path || null,
+        version: rtkVersion,
+        path: rtkPath,
+        source: rtkStatus?.source || te.rtk?.source || rtkTool.source || null,
+        preinstalled: true,
+        separate_install_required: false,
       },
       wsl,
     },
@@ -222,14 +233,21 @@ function buildTokenBurnReport({ scan = null, profiles = [], settings = {}, gainO
   };
 }
 
-function refreshRtkGain() {
+function refreshRtkGain(hootRoot = null) {
   return new Promise((resolve) => {
-    const bin = process.platform === 'win32' ? 'rtk.exe' : 'rtk';
+    let bin = process.platform === 'win32' ? 'rtk.exe' : 'rtk';
+    try {
+      if (hootRoot) {
+        const { resolveRtk } = require('./rtk-runtime');
+        const r = resolveRtk(hootRoot);
+        if (r.present && r.path) bin = r.path;
+      }
+    } catch { /* use PATH */ }
     execFile(bin, ['gain', '--all', '--format', 'json'], { timeout: 20000, windowsHide: true }, (err, stdout) => {
       if (err) return resolve({ ok: false, error: err.message, gain: null });
       try {
         const gain = JSON.parse(String(stdout).trim());
-        return resolve({ ok: true, gain });
+        return resolve({ ok: true, gain, path: bin });
       } catch (e) {
         return resolve({ ok: false, error: e.message, gain: null });
       }

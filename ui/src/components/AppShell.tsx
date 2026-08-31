@@ -1,5 +1,5 @@
 import { BRAND } from "@/lib/brand";
-import HootMark from "./HootMark";
+import HootMark from "./H00tMark";
 
 export function AppBootShell() {
   return (
@@ -15,8 +15,9 @@ export function AppBootShell() {
     >
       <div style={{ textAlign: "center" }}>
         <HootMark size={72} />
-        <div style={{ marginTop: 18, fontFamily: "'EB Garamond', serif", fontSize: 24, color: "#f5e6d0" }}>{BRAND.name}</div>
-        <div style={{ marginTop: 8, fontSize: 12, opacity: 0.5 }}>Starting local command center…</div>
+        <div style={{ marginTop: 18, fontFamily: "'Fira Code', 'Consolas', monospace", fontSize: 22, color: "#f5e6d0", letterSpacing: "0.18em", fontWeight: 700 }}>{BRAND.name}</div>
+        <div style={{ marginTop: 8, fontSize: 12, opacity: 0.5 }}>{BRAND.subtitle}</div>
+        <div style={{ marginTop: 6, fontSize: 11, opacity: 0.4 }}>Starting…</div>
         <div className="spin" style={{ margin: "20px auto 0", width: 28, height: 28, borderRadius: "50%", border: "2px solid rgba(255,176,66,0.16)", borderTopColor: "#ffb042" }} />
       </div>
     </div>

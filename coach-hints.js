@@ -34,16 +34,16 @@ function buildCoachHints({
   const burnSaved = tokenBurn?.formatted?.total_saved || pageContext.tokenBurnSaved || null;
   const rtkPresent = tokenBurn?.prevention?.rtk?.present ?? scan?.tools?.rtk?.present ?? false;
 
-  if (burnRisk === 'high') {
+  if (burnRisk === 'high' && !rtkPresent) {
     push(hints, {
       id: 'burn-rtk-high',
       priority: 88,
       tone: 'warning',
-      message: `Token burn risk is high — RTK is not installed but you have shell-heavy agents or ${tokenBurn?.rtk_profiles?.length || 0} RTK-tagged profile(s). Install RTK in WSL before long sessions.`,
+      message: `Token burn risk is high — HOOT RTK is preinstalled but not active on PATH yet (${tokenBurn?.rtk_profiles?.length || 0} RTK-tagged profile(s)). Open Vitals → Ensure HOOT RTK (no separate install).`,
       actions: [
-        { label: 'Token burn', type: 'navigate', target: '/scan' },
-        { label: 'Settings', type: 'navigate', target: '/settings' },
-        { label: 'Ask HOOT', type: 'chat', prompt: 'Help me install RTK in WSL for HOOT token burn prevention.' },
+        { label: 'Vitals / RTK', type: 'navigate', target: '/vitals' },
+        { label: 'Token burn', type: 'navigate', target: '/burn' },
+        { label: 'Ask HOOT', type: 'chat', prompt: 'How do I enable HOOT-bundled RTK token compression? It should be preinstalled, not a second install.' },
       ],
     });
   } else if (burnRisk === 'medium' && !rtkPresent) {
@@ -51,15 +51,15 @@ function buildCoachHints({
       id: 'burn-rtk-medium',
       priority: 74,
       tone: 'tip',
-      message: 'Shell output from coding agents can burn context tokens. RTK compresses git/test/eslint output before it hits the LLM.',
-      actions: [{ label: 'View burn panel', type: 'navigate', target: '/scan' }, { label: 'Why RTK?', type: 'chat', prompt: 'Explain RTK token savings for my HOOT setup.' }],
+      message: 'Shell output from coding agents can burn context tokens. HOOT RTK ships preinstalled — provision into HootAi/bin from Vitals if missing.',
+      actions: [{ label: 'Vitals', type: 'navigate', target: '/vitals' }, { label: 'Why HOOT RTK?', type: 'chat', prompt: 'Explain HOOT-bundled RTK (preinstalled token compression).' }],
     });
-  } else if (burnSaved && burnRisk === 'low' && (view === '/' || view === '/scan')) {
+  } else if (burnSaved && burnRisk === 'low' && (view === '/' || view === '/scan' || view === '/vitals')) {
     push(hints, {
       id: 'burn-rtk-savings',
       priority: 52,
       tone: 'celebration',
-      message: `RTK has prevented ~${burnSaved} tokens from reaching your agents (${tokenBurn?.formatted?.avg_savings_pct || '?'} avg savings).`,
+      message: `HOOT RTK has prevented ~${burnSaved} tokens from reaching your agents (${tokenBurn?.formatted?.avg_savings_pct || '?'} avg savings).`,
       actions: [{ label: 'Refresh stats', type: 'action', target: 'token-burn-refresh' }],
     });
   }
@@ -178,9 +178,9 @@ function buildCoachHints({
       push(hints, { id: 'scan-ollama', priority: 88, tone: 'warning', message: 'Ollama is missing. Most local profiles will not launch until it is installed.', actions: [{ label: 'Build local stack', type: 'navigate', target: '/builder' }] });
     }
     if (!rtkOk) {
-      push(hints, { id: 'scan-rtk', priority: 72, tone: 'tip', message: 'RTK is not detected — shell output may be burning tokens in agent sessions. WSL install takes one minute.', actions: [{ label: 'Settings', type: 'navigate', target: '/settings' }, { label: 'Why RTK?', type: 'chat', prompt: 'How do I install RTK in WSL for HOOT?' }] });
+      push(hints, { id: 'scan-rtk', priority: 72, tone: 'tip', message: 'HOOT RTK not on PATH yet — token compression is preinstalled with HOOT. Open Vitals and click Ensure HOOT RTK (no separate install).', actions: [{ label: 'Vitals', type: 'navigate', target: '/vitals' }, { label: 'Why HOOT RTK?', type: 'chat', prompt: 'How does HOOT-bundled RTK work? It should not require a second installation.' }] });
     } else if (!wslOk) {
-      push(hints, { id: 'scan-rtk-win', priority: 60, tone: 'tip', message: 'RTK is installed but WSL hooks may be limited on native Windows. Full savings need WSL + rtk init -g.', actions: [{ label: 'Ask AI Coach', type: 'chat', prompt: 'Explain RTK on Windows vs WSL for my setup.' }] });
+      push(hints, { id: 'scan-rtk-win', priority: 60, tone: 'tip', message: 'HOOT RTK is present; native Windows uses explicit rtk <cmd>. Full IDE hooks work best in WSL — still not a separate product install.', actions: [{ label: 'Ask AI Coach', type: 'chat', prompt: 'Explain HOOT RTK on Windows vs WSL hooks.' }] });
     }
     const missingAgents = (scan?.coders || []).filter(c => !c.detection?.present).length;
     if (missingAgents > 3) {

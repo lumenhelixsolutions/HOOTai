@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from typing import TypedDict
 
-from hoot_client import (
+from h00t_client import (
     append_memory_evidence,
     dry_run_launch,
     fetch_scan,

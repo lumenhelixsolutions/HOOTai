@@ -431,3 +431,43 @@ Profile: local-patch-test
 Status: observed-failure
 Observed: exitCode=1
 Reason: Terminal-monitored AgentDock session s-2026-07-04T09-22-08-695Z-604e2a
+
+
+## Evidence: local-bug-hunt run
+Date: 2026-08-01T22:38:58.964Z
+Profile: local-bug-hunt
+Status: observed-failure
+Observed: exitCode=1
+Reason: Terminal-monitored AgentDock session s-2026-08-01T22-38-58-007Z-e47c31
+
+
+## Evidence: local-code-review run
+Date: 2026-08-29T03:35:42.822Z
+Profile: local-code-review
+Status: observed-failure
+Observed: exitCode=1
+Reason: Terminal-monitored AgentDock session s-2026-08-29T03-35-41-214Z-8ea809
+
+
+## Evidence: local-code-review run
+Date: 2026-08-29T03:36:01.410Z
+Profile: local-code-review
+Status: observed-failure
+Observed: exitCode=1
+Reason: Terminal-monitored AgentDock session s-2026-08-29T03-36-00-620Z-5072b9
+
+
+## Evidence: cloud-architecture-codex run
+Date: 2026-08-29T03:36:56.332Z
+Profile: cloud-architecture-codex
+Status: observed-run
+Observed: exitCode=0
+Reason: Terminal-monitored AgentDock session s-2026-08-29T03-36-54-661Z-65844e
+
+
+## Evidence: cloud-architecture-codex run
+Date: 2026-08-29T03:37:10.527Z
+Profile: cloud-architecture-codex
+Status: observed-run
+Observed: exitCode=0
+Reason: Terminal-monitored AgentDock session s-2026-08-29T03-37-09-255Z-ff4fe1

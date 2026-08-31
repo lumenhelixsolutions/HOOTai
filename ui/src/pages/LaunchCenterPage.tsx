@@ -4,7 +4,7 @@ import { Eye, FolderKanban, Layers3, PlayCircle, TerminalSquare } from "lucide-r
 import { api } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { useCoach } from "@/context/CoachContext";
-import { hootSignal } from "@/lib/hoot-signals";
+import { hootSignal } from '@/lib/h00t-signals';
 
 export default function LaunchCenterPage() {
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -373,5 +373,5 @@ function Chip({ text, highlight }: { text: string; highlight?: boolean }) {
 }
 
 function BodyNote({ children }: { children: React.ReactNode }) {
-  return <div className="text-[13px] leading-relaxed opacity-65">{children}</div>;
+  return <div className='text-[13px] leading-relaxed opacity-65'>{children}</div>;
 }

@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ClipboardCopy, Flame, PlayCircle, Radar, Scan, Sparkles, Wrench } from "lucide-react";
 import { Button } from "antd";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { useCoach } from "@/context/CoachContext";
+import { useExecutiveControlOptional } from "@/context/ExecutiveControlContext";
 import { BRAND } from "@/lib/brand";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { WidgetSkeleton, statusTone } from "@/components/dashboard/primitives";
@@ -14,17 +16,25 @@ import {
   HeroReadinessWidget,
   MissionFlowWidget,
   NextActionsWidget,
+  OperatorSpineWidget,
   TokenBurnWidget,
   type Readiness,
+  type SpineStep,
+  type SpineStepId,
   type SummaryItem,
 } from "@/components/dashboard/widgets";
 
 
 export default function Dashboard() {
   const toast = useToast();
-  const { setPageContext, pageContext, registerActionHandler } = useCoach();
+  const navigate = useNavigate();
+  const { setPageContext, pageContext, registerActionHandler, setCoachOpen } = useCoach();
+  const executive = useExecutiveControlOptional();
   const [switchingProject, setSwitchingProject] = useState(false);
   const [burnLoading, setBurnLoading] = useState(false);
+  const [brainReady, setBrainReady] = useState<boolean | null>(null);
+  const [brainLabel, setBrainLabel] = useState("checking…");
+  const [spineBusy, setSpineBusy] = useState(false);
 
   const [handoffBusy, setHandoffBusy] = useState(false);
 
@@ -204,6 +214,118 @@ export default function Dashboard() {
     return actions.slice(0, 4);
   }, [scan, activeProject, readiness.state, pageContext.agentRadarExternal, tokenBurn?.risk?.level]);
 
+  const refreshBrain = useCallback(async () => {
+    try {
+      const b = await api.getCoachBrain();
+      const ready = Boolean(b.ready ?? b.doctor?.ready ?? b.brain?.available);
+      setBrainReady(ready);
+      const model = String(b.doctor?.model || b.brain?.model || "");
+      setBrainLabel(ready ? model || "ready" : b.doctor?.ollama_reachable === false ? "ollama down" : "offline");
+    } catch {
+      setBrainReady(false);
+      setBrainLabel("unreachable");
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshBrain();
+  }, [refreshBrain, scan]);
+
+  const scanPresent = Boolean(scan) && !scan?.empty && !failedSources.has("scan");
+  const hasSessions = Number(pageContext.runningCount) > 0;
+
+  const spineSteps = useMemo<SpineStep[]>(() => {
+    return [
+      {
+        id: "scan",
+        number: "01",
+        title: "Scan",
+        body: "Machine readiness cache for tools and models.",
+        ready: scanPresent,
+        primaryLabel: "Propose system scan",
+        kind: "hitl",
+        command: { type: "runScan" },
+        to: "/scan",
+      },
+      {
+        id: "brain",
+        number: "02",
+        title: "Brain",
+        body: brainReady ? `Local brain · ${brainLabel}` : `Local brain · ${brainLabel}`,
+        ready: Boolean(brainReady),
+        primaryLabel: brainReady ? "Brain ready" : "Check local brain",
+        kind: "nav",
+        to: "/vitals",
+      },
+      {
+        id: "project",
+        number: "03",
+        title: "Project",
+        body: activeProject ? activeProject.name : "Select the repo that anchors launches.",
+        ready: Boolean(activeProject),
+        primaryLabel: "Choose project",
+        kind: "nav",
+        to: "/launch",
+      },
+      {
+        id: "launch",
+        number: "04",
+        title: "Launch",
+        body: "Guided launch with human approval.",
+        ready: Boolean(activeProject && scanPresent && profiles.length > 0),
+        primaryLabel: "Open Launch (HITL)",
+        kind: "hitl",
+        command: { type: "navigate", route: "/launch" },
+        to: "/launch",
+      },
+      {
+        id: "session",
+        number: "05",
+        title: "Session",
+        body: hasSessions ? "Session activity present" : "Monitor docked runs here.",
+        ready: hasSessions,
+        primaryLabel: "Open Session",
+        kind: "nav",
+        to: "/terminal",
+      },
+    ];
+  }, [scanPresent, brainReady, brainLabel, activeProject, profiles.length, hasSessions]);
+
+  const spineCurrent = useMemo<SpineStepId | "complete">(() => {
+    for (const s of spineSteps) {
+      if (!s.ready) return s.id;
+    }
+    return "complete";
+  }, [spineSteps]);
+
+  const onSpinePrimary = useCallback(
+    async (step: SpineStep) => {
+      setSpineBusy(true);
+      try {
+        if (step.id === "brain") {
+          await refreshBrain();
+          if (!brainReady) {
+            toast.showToast("Brain not ready — open Vitals or ensure Ollama + gemma4", "warning");
+            navigate("/vitals");
+          } else {
+            toast.showToast(`Brain OK · ${brainLabel}`, "success");
+          }
+          return;
+        }
+        if (step.kind === "hitl" && step.command && executive) {
+          executive.enqueue([step.command], "operator-spine");
+          executive.openApproval(step.command);
+          setCoachOpen(true);
+          toast.showToast("Approval required — confirm in the sheet", "info");
+          return;
+        }
+        if (step.to) navigate(step.to);
+      } finally {
+        setSpineBusy(false);
+      }
+    },
+    [brainReady, brainLabel, executive, navigate, refreshBrain, setCoachOpen, toast],
+  );
 
   const handleProjectChange = async (path: string) => {
     setSwitchingProject(true);
@@ -241,6 +363,13 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-5">
+      <OperatorSpineWidget
+        steps={spineSteps}
+        currentId={spineCurrent}
+        onPrimary={onSpinePrimary}
+        busy={spineBusy}
+      />
+
       <HeroReadinessWidget
         brandName={BRAND.name}
         activeProject={activeProject}

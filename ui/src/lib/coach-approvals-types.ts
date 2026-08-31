@@ -10,6 +10,15 @@ export type CoachApprovalEntry = {
   launched?: boolean;
   tier?: string | null;
   score?: number | null;
+  /** Season C timeline fields */
+  decision?: string | null;
+  source?: string | null;
+  route?: string | null;
+  target?: string | null;
+  workflow?: string | null;
+  stepId?: string | null;
+  bind?: string | null;
+  label?: string | null;
 };
 
 export type CoachApprovalSummary = {

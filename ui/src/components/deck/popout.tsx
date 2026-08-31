@@ -30,9 +30,9 @@ import {
 import { useCooldownRegistry } from "@/hooks/useCooldownRegistry";
 import { useCoach } from "@/context/CoachContext";
 import CoachThread from "@/components/coach/CoachThread";
-import HootOwl from "@/components/hoot/HootOwl";
-import HootLogo from "@/lib/hoot-logo";
-import { readStoredHootFaceStyle } from "@/lib/hoot-face-styles";
+import HootOwl from '@/components/h00t/H00tOwl';
+import HootLogo from '@/lib/h00t-logo';
+import { readStoredHootFaceStyle } from '@/lib/h00t-face-styles';
 import { TooltipPortalProvider, pipOverlayPortal } from "@/components/TooltipPortalContext";
 import { useCoachCommandExecute } from "@/lib/useCoachCommandExecute";
 import { BRAND } from "@/lib/brand";
@@ -555,7 +555,7 @@ export function PopoutSurface({
           onNavigateDeck={() => navigate("/deck")}
         />
       )}
-      {menu?.kind === "provider" && (
+      {menu?.kind === 'provider' && (
         <ProviderDialMenu
           container={menuContainer}
           position={menu.position}

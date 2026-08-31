@@ -12,8 +12,6 @@ import CoachMarkdown from "./CoachMarkdown";
 import {
   coachCommandLabel,
   coachConfirmLevel,
-  coachConfirmMessage,
-  type CoachConfirmLevel,
 } from "@/lib/coach-command-policy";
 
 const panelStyle: React.CSSProperties = {
@@ -33,12 +31,6 @@ const viewportStyle: React.CSSProperties = {
   gap: 12,
 };
 
-const levelBorder: Record<CoachConfirmLevel, string> = {
-  auto: "rgba(255,176,66,0.25)",
-  soft: "rgba(245,158,11,0.35)",
-  hard: "rgba(239,68,68,0.4)",
-};
-
 function CoachCommandList({
   commands,
   onCommand,
@@ -46,106 +38,35 @@ function CoachCommandList({
   commands: Array<Record<string, unknown>>;
   onCommand: (cmd: Record<string, unknown>) => void;
 }) {
-  const [pending, setPending] = useState<Record<string, unknown> | null>(null);
-
-  const run = (cmd: Record<string, unknown>) => {
-    const level = coachConfirmLevel(cmd);
-    if (level === "auto") {
-      onCommand(cmd);
-      return;
-    }
-    setPending(cmd);
-  };
-
-  const approve = () => {
-    if (pending) {
-      onCommand(pending);
-      setPending(null);
-    }
-  };
-
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+    <div className="mt-2 flex flex-col gap-1.5 rounded-[10px] border border-[rgba(255,176,66,0.25)] bg-[rgba(255,176,66,0.06)] p-3">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--hoot-gold)]">
+        Executive actions · HITL
+      </div>
+      <p className="m-0 text-[11px] leading-snug opacity-65">
+        Opens the global approval sheet. Nothing mutates until you Approve.
+      </p>
       {commands.map((cmd, i) => {
         const level = coachConfirmLevel(cmd);
+        const hard = level === "hard";
         return (
           <button
             key={i}
             type="button"
-            onClick={() => run(cmd)}
+            onClick={() => onCommand(cmd)}
+            className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-left text-xs font-medium"
             style={{
-              padding: "6px 10px",
-              borderRadius: 6,
-              border: `1px solid ${levelBorder[level]}`,
-              background: level === "hard" ? "rgba(239,68,68,0.08)" : "rgba(255,176,66,0.08)",
-              color: level === "hard" ? "#f87171" : "#ffb042",
-              cursor: "pointer",
-              fontSize: 11,
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              textAlign: "left",
+              borderColor: hard ? "rgba(239,68,68,0.4)" : "rgba(255,176,66,0.35)",
+              background: hard ? "rgba(239,68,68,0.1)" : "rgba(255,176,66,0.12)",
+              color: hard ? "#f87171" : "#ffb042",
             }}
           >
-            <Wrench size={10} />
-            {coachCommandLabel(cmd)}
-            {level !== "auto" && (
-              <span style={{ opacity: 0.7, marginLeft: 4 }}>
-                ({level === "hard" ? "confirm" : "review"})
-              </span>
-            )}
+            <Wrench size={12} />
+            <span className="flex-1">{coachCommandLabel(cmd)}</span>
+            <span className="text-[10px] opacity-75">{level === "auto" ? "Run" : "Review"}</span>
           </button>
         );
       })}
-      {pending && (
-        <div
-          style={{
-            padding: "10px 12px",
-            borderRadius: 8,
-            border: `1px solid ${levelBorder[coachConfirmLevel(pending)]}`,
-            background: "rgba(0,0,0,0.35)",
-            fontSize: 12,
-            lineHeight: 1.45,
-          }}
-        >
-          <p style={{ margin: "0 0 8px", color: "#f5f5f5" }}>
-            {coachConfirmMessage(pending, coachConfirmLevel(pending))}
-          </p>
-          <div style={{ display: "flex", gap: 6 }}>
-            <button
-              type="button"
-              onClick={approve}
-              style={{
-                padding: "5px 12px",
-                borderRadius: 6,
-                border: "none",
-                background: "linear-gradient(135deg, #c8966a, #e8a050)",
-                color: "#0a0a0a",
-                cursor: "pointer",
-                fontSize: 11,
-                fontWeight: 600,
-              }}
-            >
-              Approve
-            </button>
-            <button
-              type="button"
-              onClick={() => setPending(null)}
-              style={{
-                padding: "5px 12px",
-                borderRadius: 6,
-                border: "1px solid rgba(255,255,255,0.12)",
-                background: "transparent",
-                color: "#dadada",
-                cursor: "pointer",
-                fontSize: 11,
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

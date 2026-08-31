@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
 import { useCoach } from "@/context/CoachContext";
-import { hootSignal } from "@/lib/hoot-signals";
+import { hootSignal } from "@/lib/h00t-signals";
 import { Scan, Cpu, HardDrive, Microchip, Radar, Flame } from "lucide-react";
 import { BRAND } from "@/lib/brand";
 import TokenBurnPanel, { type TokenBurnReport } from "@/components/TokenBurnPanel";
@@ -109,7 +109,7 @@ export default function ScanPage() {
     setLoading(true);
     setError(null);
     setPageContext({ scanLoading: true });
-    setHootStatus("Scanning your system…");
+    setHootStatus("Scanning your systemΓÇª");
     try {
       const s = await api.runScan();
       setScan(s);
@@ -123,7 +123,7 @@ export default function ScanPage() {
       reportError({
         message: msg,
         source: "system scan",
-        fix: "PowerShell scanner failed — HOOT can help diagnose. Try: Set-ExecutionPolicy Bypass -Scope Process, then re-run scan.",
+        fix: "PowerShell scanner failed ΓÇö HOOT can help diagnose. Try: Set-ExecutionPolicy Bypass -Scope Process, then re-run scan.",
       });
     } finally {
       setLoading(false);
@@ -186,16 +186,16 @@ export default function ScanPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <p style={{ margin: 0, fontSize: 12, opacity: 0.65, lineHeight: 1.5, display: "flex", alignItems: "center", gap: 8 }}>
             <Flame size={14} color="#fb923c" />
-            RTK prevention layer — risk assessment and savings from <code style={{ opacity: 0.85 }}>rtk gain</code>.
+            RTK prevention layer ΓÇö risk assessment and savings from <code style={{ opacity: 0.85 }}>rtk gain</code>.
           </p>
         </div>
         <TokenBurnPanel data={tokenBurn} loading={burnLoading} onRefresh={() => refreshBurn(true)} compact />
       </Section>
 
-      <Section title="Agent Radar — running processes">
+      <Section title="Agent Radar ΓÇö running processes">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <p style={{ margin: 0, fontSize: 12, opacity: 0.65, lineHeight: 1.5 }}>
-            System-wide scan for coding agents (Claude, Codex, Gemini, Cursor, etc.) — {BRAND.dockLabel} vs {BRAND.externalLabel}.
+            System-wide scan for coding agents (Claude, Codex, Gemini, Cursor, etc.) ΓÇö {BRAND.dockLabel} vs {BRAND.externalLabel}.
           </p>
           <button
             onClick={() => refreshRadar(true)}
@@ -215,7 +215,7 @@ export default function ScanPage() {
             }}
           >
             <Radar size={14} />
-            {radarLoading ? "Scanning…" : "Refresh"}
+            {radarLoading ? "ScanningΓÇª" : "Refresh"}
           </button>
         </div>
         {radar ? (
@@ -236,8 +236,8 @@ export default function ScanPage() {
                 <div key={agent.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
                   <span style={{ fontSize: 13 }}>{agent.name}</span>
                   <span style={{ fontSize: 12, opacity: 0.75 }}>
-                    {agent.count} proc · <span style={{ color: "#4ade80" }}>{agent.dock} dock</span>
-                    {agent.external > 0 && <span style={{ color: "#fb923c" }}> · {agent.external} ext</span>}
+                    {agent.count} proc ┬╖ <span style={{ color: "#4ade80" }}>{agent.dock} dock</span>
+                    {agent.external > 0 && <span style={{ color: "#fb923c" }}> ┬╖ {agent.external} ext</span>}
                   </span>
                 </div>
               ))
@@ -245,11 +245,11 @@ export default function ScanPage() {
               <div style={{ fontSize: 12, opacity: 0.5, padding: "8px 0" }}>No coding-agent processes detected.</div>
             )}
             {radar.scanned_at && (
-              <div style={{ fontSize: 10, opacity: 0.4 }}>Last scan {new Date(radar.scanned_at).toLocaleTimeString()}{radar.cached ? " · cached" : ""}</div>
+              <div style={{ fontSize: 10, opacity: 0.4 }}>Last scan {new Date(radar.scanned_at).toLocaleTimeString()}{radar.cached ? " ┬╖ cached" : ""}</div>
             )}
           </div>
         ) : (
-          <div style={{ fontSize: 12, opacity: 0.5 }}>Loading agent radar…</div>
+          <div style={{ fontSize: 12, opacity: 0.5 }}>Loading agent radarΓÇª</div>
         )}
       </Section>
 
@@ -257,7 +257,7 @@ export default function ScanPage() {
         <div style={{ padding: 12, borderRadius: 8, background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80", fontSize: 13 }}>
           Imported {(scan as any).key_vault.imported} API key{(scan as any).key_vault.imported === 1 ? "" : "s"} into local vault
           {((scan as any).key_vault.keys || []).length > 0 && (
-            <span style={{ opacity: 0.8 }}> — {((scan as any).key_vault.keys as any[]).map((k) => k.masked).join(", ")}</span>
+            <span style={{ opacity: 0.8 }}> ΓÇö {((scan as any).key_vault.keys as any[]).map((k) => k.masked).join(", ")}</span>
           )}
         </div>
       )}
@@ -380,14 +380,14 @@ function ProductionSessionCard({ sessions }: { sessions: ProductionSession[] }) 
   const border = heavy ? "rgba(251,146,60,0.35)" : `${accent}44`;
   const bg = heavy ? "rgba(251,146,60,0.06)" : `${accent}14`;
   const query = primary.last_user_query?.trim();
-  const shortQuery = query ? (query.length > 140 ? `${query.slice(0, 140)}…` : query) : null;
+  const shortQuery = query ? (query.length > 140 ? `${query.slice(0, 140)}ΓÇª` : query) : null;
 
   return (
     <div style={{ padding: 14, borderRadius: 10, background: bg, border: `1px solid ${border}`, display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div>
           <div style={{ fontSize: 13, fontWeight: 600, color: accent }}>
-            {primary.agent_name || primary.agent_id} — production session
+            {primary.agent_name || primary.agent_id} ΓÇö production session
             {primary.active ? "" : " (recent)"}
           </div>
           <div style={{ fontSize: 11, opacity: 0.55, marginTop: 2 }}>
@@ -399,19 +399,19 @@ function ProductionSessionCard({ sessions }: { sessions: ProductionSession[] }) 
           </div>
         </div>
         <span style={{ fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", padding: "3px 8px", borderRadius: 6, background: "rgba(255,255,255,0.04)", color: primary.matched_project ? "#4ade80" : "#9ca3af", flexShrink: 0 }}>
-          {primary.active ? (primary.matched_project ? "Active · project" : "Active") : primary.matched_project ? "Project match" : "Other cwd"}
+          {primary.active ? (primary.matched_project ? "Active ┬╖ project" : "Active") : primary.matched_project ? "Project match" : "Other cwd"}
         </span>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-        <ProdMetric label="Model" value={primary.model_id || primary.agent_id || "—"} mono />
+        <ProdMetric label="Model" value={primary.model_id || primary.agent_id || "ΓÇö"} mono />
         <ProdMetric label="Est. context" value={`~${formatEstTokens(tokens)} tok`} warn={heavy} />
         <ProdMetric label="Turns" value={String(primary.completed_turns ?? 0)} />
         <ProdMetric label="Compactions" value={String(primary.compaction_count ?? 0)} warn={(primary.compaction_count ?? 0) > 0} />
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 11, opacity: 0.65 }}>
-        {primary.session_id && <span>Session <code style={{ opacity: 0.9 }}>{String(primary.session_id).slice(0, 8)}…</code></span>}
+        {primary.session_id && <span>Session <code style={{ opacity: 0.9 }}>{String(primary.session_id).slice(0, 8)}ΓÇª</code></span>}
         {primary.cwd && <span>CWD {primary.cwd}</span>}
         {primary.thread_name && <span>{primary.thread_name}</span>}
         {primary.yolo_mode && <span style={{ color: "#fbbf24" }}>YOLO</span>}
@@ -423,7 +423,7 @@ function ProductionSessionCard({ sessions }: { sessions: ProductionSession[] }) 
         <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingTop: 4, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
           {sessions.slice(1).map((s) => (
             <div key={`${s.session_id}-${s.cwd}`} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, opacity: 0.6 }}>
-              <span><code>{String(s.session_id || "").slice(0, 8)}…</code>{s.cwd ? ` · ${s.cwd}` : ""}</span>
+              <span><code>{String(s.session_id || "").slice(0, 8)}ΓÇª</code>{s.cwd ? ` ┬╖ ${s.cwd}` : ""}</span>
               <span>{s.est_context_tokens ? `~${formatEstTokens(s.est_context_tokens)} tok` : ""}</span>
             </div>
           ))}

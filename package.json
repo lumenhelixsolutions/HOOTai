@@ -1,10 +1,11 @@
 {
-  "name": "hoot",
+  "name": "h00t",
   "version": "2.3.1",
-  "description": "HOOT — local AI command center. Project-aware agent stack scanner, planner, terminal monitor, launcher, and memory system.",
+  "description": "H00T — AI Command Center. Project-aware agent stack scanner, planner, terminal monitor, launcher, and memory system.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "start:h00t": "node server.js",
     "start:hoot": "node server.js",
     "test": "node --test tests/*.test.js"
   },

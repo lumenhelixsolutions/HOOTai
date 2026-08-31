@@ -1,17 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCoach } from "@/context/CoachContext";
 import CoachThread from "@/components/coach/CoachThread";
 import { useCoachCommandExecute } from "@/lib/useCoachCommandExecute";
+import { api } from "@/lib/api";
 import { Bot, X, MessageCircle, ChevronRight } from "lucide-react";
 
-function getApiKey(): string | null {
-  return localStorage.getItem("agentdock_gemini_key") || localStorage.getItem("agentdock_api_key");
-}
-
-function getModelProvider(): string {
-  return localStorage.getItem("agentdock_model_provider") || "auto";
-}
+type BrainChip = {
+  ready: boolean;
+  label: string;
+  color: string;
+  bg: string;
+  title?: string;
+};
 
 const toneStyles = {
   tip: { border: "rgba(255,176,66,0.35)", bg: "rgba(255,176,66,0.12)", accent: "#ffb042" },
@@ -24,6 +25,56 @@ export default function HeadCoach() {
   const { topHint, viewGuide, dismissHint, coachOpen, setCoachOpen, consumeChatPrompt, emitCoachAction, queueChatPrompt, coachSessionId } = useCoach();
   const [bubbleVisible, setBubbleVisible] = useState(true);
   const [composerPrompt, setComposerPrompt] = useState<string | null>(null);
+  const [brainChip, setBrainChip] = useState<BrainChip>({
+    ready: false,
+    label: "brain…",
+    color: "#ffb042",
+    bg: "rgba(255,176,66,0.12)",
+  });
+
+  const refreshBrain = useCallback(async () => {
+    try {
+      const r = await api.getCoachBrain();
+      const d = r.doctor;
+      const provider = String(d?.provider || r.brain?.provider || "local");
+      const model = String(d?.model || r.brain?.model || "").replace(/^.*\//, "");
+      const ready = Boolean(r.ready ?? d?.ready ?? r.brain?.available);
+      const shortModel = model.length > 22 ? `${model.slice(0, 20)}…` : model;
+      if (ready) {
+        setBrainChip({
+          ready: true,
+          label: shortModel ? `${provider} · ${shortModel}` : provider,
+          color: "#4ade80",
+          bg: "rgba(74,222,128,0.1)",
+          title: (d?.hints || []).join(" · ") || `${provider} ${model}`.trim(),
+        });
+      } else if (r.brain?.pulling) {
+        setBrainChip({
+          ready: false,
+          label: `pulling ${shortModel || "model"}…`,
+          color: "#fbbf24",
+          bg: "rgba(245,158,11,0.12)",
+          title: (d?.hints || []).join(" · "),
+        });
+      } else {
+        setBrainChip({
+          ready: false,
+          label: d?.ollama_reachable === false ? "ollama down" : "brain offline",
+          color: "#f87171",
+          bg: "rgba(248,113,113,0.1)",
+          title: (d?.hints || []).join(" · ") || "Local brain not ready — see Vitals / ollama serve",
+        });
+      }
+    } catch {
+      setBrainChip({
+        ready: false,
+        label: "HOOT offline",
+        color: "#f87171",
+        bg: "rgba(248,113,113,0.1)",
+        title: "Cannot reach /api/coach/brain — restart HOOT",
+      });
+    }
+  }, []);
 
   useEffect(() => {
     if (topHint) setBubbleVisible(true);
@@ -36,6 +87,13 @@ export default function HeadCoach() {
       setComposerPrompt(prompt);
     }
   }, [consumeChatPrompt, setCoachOpen]);
+
+  useEffect(() => {
+    void refreshBrain();
+    if (!coachOpen) return undefined;
+    const id = window.setInterval(() => void refreshBrain(), 30000);
+    return () => window.clearInterval(id);
+  }, [coachOpen, refreshBrain]);
 
   const runAction = (action: { type: string; target?: string; prompt?: string }) => {
     if (action.type === "navigate" && action.target) {
@@ -136,16 +194,29 @@ export default function HeadCoach() {
           }}
         >
           <div style={{ padding: "14px 18px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
               <Bot size={18} color="#ffb042" />
               <span style={{ fontSize: 14, fontWeight: 500 }}>AI Coach</span>
-              <span style={{
-                fontSize: 10, padding: "2px 6px", borderRadius: 4,
-                background: getApiKey() ? "rgba(74,222,128,0.1)" : "rgba(255,176,66,0.12)",
-                color: getApiKey() ? "#4ade80" : "#ffb042",
-              }}>
-                {getApiKey() ? `${getModelProvider().toUpperCase()} + screen context` : "SCREEN-AWARE"}
-              </span>
+              <button
+                type="button"
+                title={brainChip.title || "Local mascot brain status"}
+                onClick={() => void refreshBrain()}
+                style={{
+                  fontSize: 10,
+                  padding: "2px 6px",
+                  borderRadius: 4,
+                  border: "none",
+                  cursor: "pointer",
+                  background: brainChip.bg,
+                  color: brainChip.color,
+                  maxWidth: 200,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {brainChip.label}
+              </button>
             </div>
             <button type="button" onClick={() => setCoachOpen(false)} style={{ background: "none", border: "none", color: "#dadada", cursor: "pointer" }}>
               <X size={16} />

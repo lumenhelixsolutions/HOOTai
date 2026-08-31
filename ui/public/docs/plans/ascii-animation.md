@@ -220,10 +220,10 @@ A stale or wrong browser key forces Gemini even when `resolveEffectiveBrain` pic
 | File | Change |
 |------|--------|
 | `ui/src/lib/hoot-ascii.ts` | `CognitiveRuntime`, domains, **7-line sketch layout**, alignment helpers, wire `resolveHootEmotion` → domain |
-| `ui/src/lib/hoot-logo.tsx` | Render thinking band + eyes + beak + emit; glow `@` and eye chars |
+| `ui/src/lib/h00t-logo.tsx` | Render thinking band + eyes + beak + emit; glow `@` and eye chars |
 | `ui/src/index.css` | Optional `.hoot-ascii--emit` drop animation; `prefers-reduced-motion` static hold |
 | `ui/src/context/CoachContext.tsx` | Expose `chatLoading` + trigger edges for cascade (if not already) |
-| `tests/hoot-ascii.test.ts` | **New** — alignment, cascade phases, pulse cycles, domain resolution |
+| `tests/h00t-ascii.test.ts` | **New** — alignment, cascade phases, pulse cycles, domain resolution |
 | `chat.js` | Vault-first key resolution; local provider key hygiene |
 | `key-vault.js` | Trim keys on read/write |
 | `ui/src/lib/useAgentDockRuntime.ts` | Conditional `apiKey` — omit when server should resolve |

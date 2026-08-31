@@ -185,6 +185,27 @@
       "default_enabled": true
     },
     {
+      "id": "provider-ride",
+      "name": "ProviderRide",
+      "type": "capability-layer",
+      "tag": "Providers",
+      "description": "ProviderRide — private multi-backend provider doctor + HITL Account Booth + AES-GCM credentials for AI tool/LLM accounts. Standalone package at ../provider-ride; limited power (no general web agent).",
+      "source": "local:../provider-ride",
+      "version": "0.2.0",
+      "host_bridge": "provider-ride-host.js",
+      "api": [
+        "GET /api/providers/doctor",
+        "GET /api/providers/ride/meta",
+        "GET /api/providers/booth",
+        "POST /api/providers/booth/open",
+        "GET/POST /api/providers/credentials"
+      ],
+      "risk_tier": "medium",
+      "policy": "Mutations require HITL; doctor is read-only",
+      "default_enabled": true,
+      "always_on": true
+    },
+    {
       "id": "cooldown-command-deck",
       "name": "Cooldown Command Deck",
       "type": "builtin",

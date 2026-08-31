@@ -4,6 +4,7 @@ import type { HootVersionInfo } from "@/lib/api";
 import { api } from "../lib/api";
 import { useCoach } from "@/context/CoachContext";
 import HybridWorkspaceSettings from "@/components/hybrid/HybridWorkspaceSettings";
+import ProviderRideCredentials from "@/components/settings/ProviderRideCredentials";
 import { useSidebarTooltips } from "@/hooks/useSidebarTooltips";
 import { useVersionHistory } from "@/hooks/useVersionHistory";
 
@@ -64,12 +65,21 @@ interface ServerSettings {
   network?: { lan_enabled?: boolean };
 }
 
+type SettingsTier = "essentials" | "expert";
+
 export default function SettingsPage() {
   const { setPageContext } = useCoach();
   const [vaultKeys, setVaultKeys] = useState<VaultKeyRow[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [settingsTier, setSettingsTier] = useState<SettingsTier>(() => {
+    try {
+      return (localStorage.getItem("hoot-settings-tier") as SettingsTier) || "essentials";
+    } catch {
+      return "essentials";
+    }
+  });
   const [modelProvider, setModelProvider] = useState("auto");
   const [brainStatus, setBrainStatus] = useState<{ provider?: string; model?: string; available?: boolean } | null>(null);
   const [customEndpoint, setCustomEndpoint] = useState("");
@@ -81,6 +91,13 @@ export default function SettingsPage() {
   const [tokenBusy, setTokenBusy] = useState(false);
   const [sidebarTooltips, setSidebarTooltips] = useSidebarTooltips();
   const { history: versionHistory, record: recordVersion, isNew: versionIsNew } = useVersionHistory(status?.info);
+  const expert = settingsTier === "expert";
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("hoot-settings-tier", settingsTier);
+    } catch { /* ignore */ }
+  }, [settingsTier]);
 
   useEffect(() => {
     if (status?.info) recordVersion();
@@ -198,26 +215,54 @@ export default function SettingsPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 720 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ fontSize: 20, margin: 0 }}>Settings</h2>
-        <button
-          onClick={save}
-          style={{
-            padding: "10px 20px",
-            borderRadius: 8,
-            border: "1px solid rgba(74,222,128,0.3)",
-            background: saved ? "rgba(74,222,128,0.2)" : "rgba(74,222,128,0.1)",
-            color: "#4ade80",
-            cursor: "pointer",
-            fontSize: 13,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          {saved ? <CheckCircle size={14} /> : <Save size={14} />}
-          {saved ? "Saved!" : "Save"}
-        </button>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h2 style={{ fontSize: 20, margin: 0 }}>Settings</h2>
+          <p style={{ margin: "6px 0 0", fontSize: 12, opacity: 0.5 }}>
+            {expert ? "Expert: all backends, LAN, hybrid, vault tools" : "Day-1 essentials: brain, keys, save"}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 4, padding: 3, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)" }}>
+            {(["essentials", "expert"] as SettingsTier[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setSettingsTier(t)}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 11,
+                  textTransform: "capitalize",
+                  background: settingsTier === t ? "rgba(255,176,66,0.15)" : "transparent",
+                  color: settingsTier === t ? "#ffb042" : "#dadada",
+                }}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={save}
+            style={{
+              padding: "10px 20px",
+              borderRadius: 8,
+              border: "1px solid rgba(74,222,128,0.3)",
+              background: saved ? "rgba(74,222,128,0.2)" : "rgba(74,222,128,0.1)",
+              color: "#4ade80",
+              cursor: "pointer",
+              fontSize: 13,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            {saved ? <CheckCircle size={14} /> : <Save size={14} />}
+            {saved ? "Saved!" : "Save"}
+          </button>
+        </div>
       </div>
 
       <div style={{ padding: 20, borderRadius: 12, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
@@ -276,7 +321,7 @@ export default function SettingsPage() {
         )}
       </div>
 
-      <div style={{ padding: 20, borderRadius: 12, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+      {expert && <div style={{ padding: 20, borderRadius: 12, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
           <Sparkles size={16} color="#ffb042" />
           <h3 style={{ fontSize: 14, margin: 0, color: "#f5f5f5" }}>Cloud Model Override</h3>
@@ -313,9 +358,9 @@ export default function SettingsPage() {
             style={{ ...inputStyle, marginTop: 12 }}
           />
         )}
-      </div>
+      </div>}
 
-      {serverSettings && (
+      {expert && serverSettings && (
         <div style={{ padding: 20, borderRadius: 12, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
             <Cpu size={16} color="#4ade80" />
@@ -461,7 +506,9 @@ export default function SettingsPage() {
         </div>
         <p style={{ fontSize: 12, opacity: 0.5, margin: "0 0 16px" }}>
           Keys auto-import from process env and scanned <code>.env</code> files on every Readiness scan.
-          Stored in <code>state/key-vault.json</code> on your machine. UI shows last 3 characters only.
+          Stored <strong>AES-256-GCM encrypted</strong> in <code>state/key-vault.json</code> (master key local-only, ACL-restricted).
+          UI shows last 3 characters only — plaintext never leaves this machine via the API.
+          <strong>ProviderRide</strong> also seals slots under <code>state/provider-ride/</code> for account credentials.
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {KEY_DEFS.map((def) => {
@@ -497,7 +544,9 @@ export default function SettingsPage() {
         )}
       </div>
 
-      <div style={{ padding: 20, borderRadius: 12, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+      <ProviderRideCredentials />
+
+      {expert && <div style={{ padding: 20, borderRadius: 12, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
           <Wifi size={16} color="#93c5fd" />
           <h3 style={{ fontSize: 14, margin: 0, color: "#f5f5f5" }}>Network (LAN)</h3>
@@ -572,9 +621,9 @@ export default function SettingsPage() {
             Auth: {authStatus.enabled ? "on" : "off"} · You: {authStatus.authenticated ? "authenticated" : "needs token"}
           </p>
         )}
-      </div>
+      </div>}
 
-      <HybridWorkspaceSettings />
+      {expert && <HybridWorkspaceSettings />}
 
       <div style={{ padding: 20, borderRadius: 12, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
@@ -657,39 +706,49 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <div style={{ padding: 20, borderRadius: 12, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-          <Zap size={16} color="#fbbf24" />
-          <h3 style={{ fontSize: 14, margin: 0, color: "#f5f5f5" }}>Token Efficiency (RTK)</h3>
+      {expert && (
+        <div style={{ padding: 20, borderRadius: 12, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+            <Zap size={16} color="#fbbf24" />
+            <h3 style={{ fontSize: 14, margin: 0, color: "#f5f5f5" }}>Token Efficiency (RTK)</h3>
+          </div>
+          {scanHints && (
+            <p style={{ fontSize: 11, margin: 0, color: scanHints.rtk?.present ? "#4ade80" : "#fbbf24" }}>
+              RTK: {scanHints.rtk?.present ? "installed" : "not detected"}
+            </p>
+          )}
         </div>
-        {scanHints && (
-          <p style={{ fontSize: 11, margin: 0, color: scanHints.rtk?.present ? "#4ade80" : "#fbbf24" }}>
-            RTK: {scanHints.rtk?.present ? "installed" : "not detected"}
-          </p>
-        )}
-      </div>
+      )}
 
-      <div style={{ padding: 20, borderRadius: 12, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-          <Database size={16} color="#ffb042" />
-          <h3 style={{ fontSize: 14, margin: 0, color: "#f5f5f5" }}>Local Data</h3>
+      {expert && (
+        <div style={{ padding: 20, borderRadius: 12, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+            <Database size={16} color="#ffb042" />
+            <h3 style={{ fontSize: 14, margin: 0, color: "#f5f5f5" }}>Local Data</h3>
+          </div>
+          <button
+            onClick={async () => {
+              if (!confirm("Clear all vault API keys?")) return;
+              for (const k of vaultKeys) await api.deleteKey(k.name);
+              setVaultKeys([]);
+              localStorage.removeItem("agentdock_api_keys");
+              localStorage.removeItem("agentdock_gemini_key");
+            }}
+            style={{
+              padding: "8px 16px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.3)",
+              background: "rgba(239,68,68,0.1)", color: "#ef4444", cursor: "pointer", fontSize: 12,
+            }}
+          >
+            Clear API Keys
+          </button>
         </div>
-        <button
-          onClick={async () => {
-            if (!confirm("Clear all vault API keys?")) return;
-            for (const k of vaultKeys) await api.deleteKey(k.name);
-            setVaultKeys([]);
-            localStorage.removeItem("agentdock_api_keys");
-            localStorage.removeItem("agentdock_gemini_key");
-          }}
-          style={{
-            padding: "8px 16px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.3)",
-            background: "rgba(239,68,68,0.1)", color: "#ef4444", cursor: "pointer", fontSize: 12,
-          }}
-        >
-          Clear API Keys
-        </button>
-      </div>
+      )}
+
+      {!expert && (
+        <p style={{ fontSize: 12, opacity: 0.5, margin: 0 }}>
+          Need llama.cpp, LAN auth, hybrid roots, or vault wipe? Switch to <strong style={{ color: "#ffb042" }}>Expert</strong> above.
+        </p>
+      )}
     </div>
   );
 }

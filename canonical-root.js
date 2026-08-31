@@ -3,14 +3,16 @@
 const fs = require('fs');
 const path = require('path');
 
-const CANONICAL_DIR_NAMES = new Set(['hoot', 'hootai']);
+const CANONICAL_DIR_NAMES = new Set(['hoot', 'hootai', 'h00t']);
 const LEGACY_DIR_NAMES = new Set(['agentdock']);
 
-const CANONICAL_CANDIDATE_NAMES = ['HootAi', 'Hoot'];
+const CANONICAL_CANDIDATE_NAMES = ['h00t', 'H00T', 'HootAi', 'Hoot'];
 
 const CANONICAL_HOOT_PATH = process.platform === 'win32'
-  ? 'D:\\projects\\HootAi'
-  : path.join(path.dirname(__dirname), 'HootAi');
+  ? (fs.existsSync('D:\\projects\\h00t\\server.js')
+    ? 'D:\\projects\\h00t'
+    : 'D:\\projects\\HootAi')
+  : path.join(path.dirname(__dirname), 'h00t');
 
 function findCanonicalSibling(parent) {
   for (const name of CANONICAL_CANDIDATE_NAMES) {
@@ -52,9 +54,10 @@ function assertCanonicalHootRoot(opts = {}) {
   const canonical = resolveCanonicalHootRoot(root);
   log('');
   log('LEGACY PATH: D:\\projects\\agentdock is a stale mirror.');
-  log(`Canonical HOOT root: ${canonical}`);
+  log(`Canonical H00T root: ${canonical}`);
   log('Start with: pwsh D:\\projects\\scripts\\start-hoot.ps1');
   log('         or: cd D:\\projects\\HootAi && node server.js');
+  log('         (folder may later be D:\\projects\\h00t)');
   log('');
 
   if (exitOnLegacy) process.exit(1);

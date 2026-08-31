@@ -26,28 +26,33 @@ import { Menu as AntMenu, Tooltip } from "antd";
 import PageErrorBoundary from "@/components/PageErrorBoundary";
 import type { MenuProps } from "antd";
 import ThemeToggle from "./ThemeToggle";
-import HootMark from "./HootMark";
-import HootWordmark from "./HootWordmark";
+import HootMark from "./H00tMark";
+import HootWordmark from "./H00tWordmark";
 import { BRAND } from "@/lib/brand";
 import HelpTooltip from "./HelpTooltip";
 import { CooldownRegistryProvider } from "@/context/CooldownRegistryContext";
 import { DeckPopoutProvider } from "./deck/popout";
-import { HootFloatProvider } from "./hoot/hoot-float";
+import { HootFloatProvider } from "./h00t/h00t-float";
 import { ToastProvider } from "./Toast";
 import SessionPollProvider from "./SessionPollProvider";
 import { getViewDoc } from "@/lib/app-docs";
 import { getTooltip } from "@/lib/tooltips";
 import { toggleTheme } from "@/lib/theme";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useHootVersion } from "@/hooks/useHootVersion";
+import { useHootVersion } from '@/hooks/useH00tVersion';
 import { useSidebarTooltips } from "@/hooks/useSidebarTooltips";
-import { APP_ROUTES, NAV_GROUP_ORDER, PRIORITY_ROUTE_PATHS, getRouteByPath, routeVisibleInMode, type UiMode } from "@/lib/app-shell";
-import { HOOT_ACTIONS } from "@/lib/hoot-control";
+import { APP_ROUTES, HUB_BLURBS, NAV_GROUP_ORDER, PRIORITY_ROUTE_PATHS, getRouteByPath, routeVisibleInMode, type UiMode } from '@/lib/app-shell';
+import { HOOT_ACTIONS } from "@/lib/h00t-control";
 import { useCoach } from "@/context/CoachContext";
+import { ExecutiveControlProvider } from "@/context/ExecutiveControlContext";
+import HealthStrip from "./shell/HealthStrip";
+import ApprovalSheet from "./shell/ApprovalSheet";
+import PendingActionsDock from "./shell/PendingActionsDock";
+import ScreenBindHighlight from "./shell/ScreenBindHighlight";
 
 const CommandPalette = lazy(() => import("./CommandPalette"));
 const ShortcutHelp = lazy(() => import("./ShortcutHelp"));
-const HootMascot = lazy(() => import("./hoot/HootMascot"));
+const HootMascot = lazy(() => import("./h00t/H00tMascot"));
 const OnboardingWizard = lazy(() => import("@/components/onboarding/OnboardingWizard"));
 const ViewGuideBar = lazy(() => import("./ViewGuideBar"));
 const CooldownStrip = lazy(() => import("./deck/CooldownStrip"));
@@ -198,11 +203,15 @@ export default function AppLayout() {
 
   return (
     <ToastProvider>
+      <ExecutiveControlProvider>
       <SessionPollProvider />
       <CooldownRegistryProvider pollMs={30000}>
       <DeckPopoutProvider>
       <HootFloatProvider>
-      <div className="hoot-app-shell flex min-h-screen bg-background font-sans text-foreground">
+      <div
+        className="hoot-app-shell flex min-h-screen bg-background font-sans text-foreground"
+        style={{ ["--hoot-sidebar" as string]: isMobile ? "0px" : collapsed ? "88px" : "280px" }}
+      >
         {/* Desktop sidebar */}
         {!isMobile && (
           <aside
@@ -236,6 +245,7 @@ export default function AppLayout() {
           className="flex min-h-screen flex-1 flex-col transition-[margin-left] duration-200"
           style={{ marginLeft: isMobile ? 0 : collapsed ? 88 : 280 }}
         >
+          <HealthStrip />
           <header className="sticky top-0 z-40 flex flex-wrap items-start justify-between gap-4 border-b border-border bg-background/80 px-4 py-4 backdrop-blur-xl md:px-7 md:py-5">
             <div className="flex min-w-0 flex-col gap-3">
               <div className="flex flex-wrap items-center gap-2.5">
@@ -273,12 +283,16 @@ export default function AppLayout() {
                 <TopMetric
                   icon={<Radar size={16} strokeWidth={1.9} className="hoot-gold-text" />}
                   label="Primary loop"
-                  value={uiMode === "basic" ? "Home → Readiness → Build → Launch → Session" : "Operate → Intelligence → Configure"}
+                  value={uiMode === "basic" ? "Home → Readiness → Build → Launch → Session" : "Operate · Machine · Trust · Fleet · Configure"}
                 />
                 <TopMetric
                   icon={<PanelLeft size={16} strokeWidth={1.9} className="text-green-300" />}
                   label="Operator focus"
-                  value={uiMode === "basic" ? "Let HOOT route you through scan, prefab choice, and guided launch" : "Keep launch authority in one place while advanced surfaces stay grouped"}
+                  value={
+                    uiMode === "basic"
+                      ? "Let H00T route you through scan, prefab choice, and guided launch"
+                      : HUB_BLURBS[(current.group as keyof typeof HUB_BLURBS) || "Operate"] || "Curated hubs — same depth, less noise"
+                  }
                 />
               </div>
             </div>
@@ -301,7 +315,7 @@ export default function AppLayout() {
                 <ModeToggle uiMode={uiMode} setUiMode={setUiMode} compact />
                 <StatusPill label="127.0.0.1 active" tone="green" />
                 {versionInfo?.display ? <StatusPill label={versionInfo.display} tone="gold" /> : <StatusPill label={BRAND.subtitle} tone="gold" />}
-                <StatusPill label={uiMode === "basic" ? "5-step operator loop" : "Advanced grouped surfaces"} tone="slate" />
+                <StatusPill label={uiMode === "basic" ? "5-step operator loop" : "5 hubs · Season B"} tone="slate" />
               </div>
             </div>
           </header>
@@ -329,10 +343,14 @@ export default function AppLayout() {
           ) : null}
           <HootMascot />
         </Suspense>
+        <PendingActionsDock />
+        <ApprovalSheet />
+        <ScreenBindHighlight />
       </div>
       </HootFloatProvider>
       </DeckPopoutProvider>
       </CooldownRegistryProvider>
+      </ExecutiveControlProvider>
     </ToastProvider>
   );
 }
@@ -369,7 +387,14 @@ function SidebarContent({
         key: group.title,
         type: "group" as const,
         label: collapsed ? null : (
-          <span className="text-[10px] uppercase tracking-[0.18em] opacity-40">{group.title}</span>
+          <div className="py-0.5">
+            <span className="text-[10px] uppercase tracking-[0.18em] opacity-40">{group.title}</span>
+            {uiMode === "advanced" && HUB_BLURBS[group.title as keyof typeof HUB_BLURBS] ? (
+              <div className="mt-0.5 text-[9px] font-normal normal-case tracking-normal opacity-30 leading-snug">
+                {HUB_BLURBS[group.title as keyof typeof HUB_BLURBS]}
+              </div>
+            ) : null}
+          </div>
         ),
         children: group.items.map((item) => {
           const Icon = item.icon;
@@ -391,19 +416,20 @@ function SidebarContent({
             key: item.path,
             icon: <Icon size={18} strokeWidth={1.8} className={pathname === item.path ? "hoot-gold-text" : ""} />,
             label: collapsed ? (
-              <span className="sr-only">{item.label}</span>
+              <span className="sr-only" data-hoot-bind={`nav:${item.path}`}>{item.label}</span>
             ) : tooltipsEnabled ? (
               <Tooltip title={tooltipContent} placement="right" mouseEnterDelay={0.4}>
-                <span className="text-[13px]">{item.label}</span>
+                <span className="text-[13px]" data-hoot-bind={`nav:${item.path}`}>{item.label}</span>
               </Tooltip>
             ) : (
-              <span className="text-[13px]">{item.label}</span>
+              <span className="text-[13px]" data-hoot-bind={`nav:${item.path}`}>{item.label}</span>
             ),
             title: tooltipsEnabled ? tooltipContent : undefined,
+            "data-hoot-bind": `nav:${item.path}`,
           };
         }),
       })),
-    [collapsed, navGroups, pathname, tooltipsEnabled],
+    [collapsed, navGroups, pathname, tooltipsEnabled, uiMode],
   );
 
   return (
@@ -424,12 +450,12 @@ function SidebarContent({
             <div className="mt-2 text-[15px] font-semibold leading-snug">
               {uiMode === "basic"
                 ? "Guide the operator through scan, prefab selection, launch, and live watch."
-                : "Keep overview, readiness, profiles, sessions, and deck in one operating loop."}
+                : "Five hubs: Operate, Machine, Trust, Fleet, Configure."}
             </div>
             <div className="mt-2 text-xs leading-relaxed opacity-60">
               {uiMode === "basic"
-                ? "Basic mode hides the crowded surfaces and keeps HOOT focused on decision support and prefab setup."
-                : "Advanced mode restores the full command center, telemetry, memory, and orchestration surfaces."}
+                ? "Basic mode hides the crowded surfaces and keeps H00T focused on decision support and prefab setup."
+                : "Advanced keeps full power — curated by hub so it is not an encyclopedia."}
             </div>
           </div>
         )}
@@ -459,6 +485,7 @@ function SidebarContent({
                   <a
                     key={item.path}
                     href={item.path}
+                    data-hoot-bind={`nav:${item.path}`}
                     onClick={(e) => {
                       e.preventDefault();
                       navigate(item.path);

@@ -275,6 +275,129 @@ export function MissionFlowWidget({
 }
 
 /* ------------------------------------------------------------------ */
+/* Operator spine — Season A3 golden path CTA                          */
+/* ------------------------------------------------------------------ */
+export type SpineStepId = "scan" | "brain" | "project" | "launch" | "session";
+
+export type SpineStep = {
+  id: SpineStepId;
+  number: string;
+  title: string;
+  body: string;
+  ready: boolean;
+  primaryLabel: string;
+  kind: "hitl" | "nav" | "done";
+  command?: Record<string, unknown>;
+  to?: string;
+};
+
+export function OperatorSpineWidget({
+  steps,
+  currentId,
+  onPrimary,
+  busy,
+}: {
+  steps: SpineStep[];
+  currentId: SpineStepId | "complete";
+  onPrimary: (step: SpineStep) => void;
+  busy?: boolean;
+}) {
+  const current = steps.find((s) => s.id === currentId) || null;
+  const allReady = currentId === "complete";
+
+  return (
+    <section
+      className="hoot-card-soft rounded-3xl border border-[rgba(255,176,66,0.22)] bg-[rgba(255,176,66,0.05)] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.18)] md:p-6"
+      aria-label="Operator spine"
+    >
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.18em] opacity-45">Golden path · Season A</div>
+          <h2 className="m-0 font-serif text-2xl tracking-[-0.03em] text-foreground">
+            Operator spine
+          </h2>
+        </div>
+        {allReady ? (
+          <Badge text="Ready to operate" tone="READY" />
+        ) : (
+          <Badge text="Next step required" tone="DEGRADED" />
+        )}
+      </div>
+      <p className="mb-4 mt-1 max-w-2xl text-sm leading-relaxed opacity-70">
+        One spine: scan → local brain → project → launch (HITL) → session. Mutations always wait for your Approve.
+      </p>
+
+      <ol className="m-0 mb-4 grid list-none gap-2 p-0 sm:grid-cols-5">
+        {steps.map((step) => {
+          const active = step.id === currentId;
+          return (
+            <li
+              key={step.id}
+              className={`rounded-2xl border p-3 ${
+                step.ready
+                  ? "border-emerald-400/25 bg-emerald-400/[0.06]"
+                  : active
+                    ? "border-[rgba(255,176,66,0.4)] bg-[rgba(255,176,66,0.1)]"
+                    : "border-border bg-foreground/[0.03]"
+              }`}
+            >
+              <div className="mb-1 flex items-center justify-between gap-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider opacity-50">{step.number}</span>
+                {step.ready ? (
+                  <CheckCircle2 size={14} className="text-emerald-400" />
+                ) : active ? (
+                  <CircleDot size={14} className="text-[var(--hoot-gold)]" />
+                ) : (
+                  <span className="h-3.5 w-3.5 rounded-full border border-border" />
+                )}
+              </div>
+              <div className="text-xs font-semibold text-foreground">{step.title}</div>
+              <div className="mt-1 text-[11px] leading-snug opacity-55 line-clamp-3">{step.body}</div>
+            </li>
+          );
+        })}
+      </ol>
+
+      <div className="flex flex-wrap items-center gap-3">
+        {allReady ? (
+          <>
+            <Link
+              to="/launch"
+              className="inline-flex items-center gap-2 rounded-xl bg-[var(--hoot-gold)] px-4 py-2.5 text-sm font-semibold text-[var(--hoot-ink)]"
+            >
+              <PlayCircle size={16} /> Open Launch Center
+            </Link>
+            <Link to="/terminal" className="text-sm text-primary hover:underline">
+              Open Session →
+            </Link>
+          </>
+        ) : current ? (
+          <>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onPrimary(current)}
+              className="inline-flex items-center gap-2 rounded-xl bg-[var(--hoot-gold)] px-4 py-2.5 text-sm font-semibold text-[var(--hoot-ink)] disabled:opacity-50"
+            >
+              <PlayCircle size={16} />
+              {busy ? "Working…" : current.primaryLabel}
+            </button>
+            {current.kind === "hitl" && (
+              <span className="text-[11px] opacity-55">Opens approval sheet — nothing runs until you Approve</span>
+            )}
+            {current.to && current.kind === "nav" && (
+              <Link to={current.to} className="text-sm text-muted-foreground hover:text-foreground">
+                Or open page →
+              </Link>
+            )}
+          </>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Token burn                                                          */
 /* ------------------------------------------------------------------ */
 export function TokenBurnWidget({

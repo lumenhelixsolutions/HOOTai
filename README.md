@@ -1,30 +1,32 @@
-# HOOTai
+# H00T
 
 <p align="center">
-  <img src="docs/assets/hero.svg" alt="HOOTai header" width="100%">
+  <img src="docs/assets/hero.svg" alt="H00T header" width="100%">
 </p>
 
 <p align="center">
-  <img src="docs/assets/logo.svg" alt="HOOTai logo" width="120">
+  <img src="docs/assets/logo.svg" alt="H00T logo" width="120">
 </p>
 
-<h3 align="center">Local AI command center for project-aware agent stacks</h3>
+<h3 align="center">AI Command Center</h3>
 
 <p align="center">Scan your machine, discover projects, evaluate agent stacks, launch safely, and remember what works — all locally.</p>
 
 <p align="center">
   <a href="https://lumenhelixlab.github.io/HOOTai/">Launch Page</a>
   <span> · </span>
-  <a href="https://github.com/lumenhelixlab/HOOTai">GitHub</a>
+  <a href="https://github.com/LumenHelixLab/HOOTai">GitHub</a>
   <span> · </span>
   <a href="https://lumenhelix.com">LumenHelix</a>
 </p>
 
 ---
 
-HOOTai is the local AI command center for project-aware agent stacks. It scans your machine, discovers projects, evaluates agents and models, monitors launched profiles, and remembers outcomes — keeping every decision local and traceable.
+**H00T** is the AI Command Center for project-aware agent stacks. It scans your machine, discovers projects, evaluates agents and models, monitors launched profiles, and remembers outcomes — keeping every decision local and traceable.
 
-## Why HOOTai
+> Formerly HOOT / HOOTai / AgentDock. Product wordmark uses zeros (`H00T`); filesystem slug is `h00t`. GitHub repo path may still be `HOOTai` until a remote rename.
+
+## Why H00T
 
 - **Own your stack.** Local-first, zero server runtime dependencies, no cloud telemetry.
 - **Launch safely.** Only approved Markdown profile blocks execute; dangerous patterns are preview-warned.
@@ -35,7 +37,7 @@ HOOTai is the local AI command center for project-aware agent stacks. It scans y
 ### macOS / Linux
 
 ```bash
-git clone https://github.com/lumenhelixlab/HOOTai.git
+git clone https://github.com/LumenHelixLab/HOOTai.git
 cd HOOTai
 npm install
 npm test
@@ -45,17 +47,19 @@ node server.js
 ### Windows (PowerShell)
 
 ```powershell
-git clone https://github.com/lumenhelixlab/HOOTai.git
+git clone https://github.com/LumenHelixLab/HOOTai.git
 Set-Location HOOTai
+# Or use the portfolio path: cd D:\projects\HootAi
 npm install
 npm test
 node server.js
+# Canonical launcher: pwsh D:\projects\scripts\start-hoot.ps1
 ```
 
 ### Windows (Git Bash / WSL)
 
 ```bash
-git clone https://github.com/lumenhelixlab/HOOTai.git
+git clone https://github.com/LumenHelixLab/HOOTai.git
 cd HOOTai
 npm install
 npm test
@@ -109,5 +113,5 @@ Released under the MIT License.
 ---
 
 <p align="center">
-  <sub>HOOTai is a <a href="https://lumenhelix.com">LumenHelix</a> project — Applied Symbolic Dynamics & Reversible Computation.</sub>
+  <sub>H00T is a <a href="https://lumenhelix.com">LumenHelix</a> project — Applied Symbolic Dynamics & Reversible Computation.</sub>
 </p>

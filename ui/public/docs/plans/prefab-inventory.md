@@ -129,7 +129,7 @@ User chose **reactive** depth for v1. Diary polling (`/api/activity/today`) and 
 
 ### Tests
 
-- `tests/hoot-emotions.test.js` — trigger priority, TTL, path defaults
+- `tests/h00t-emotions.test.js` — trigger priority, TTL, path defaults
 - UI smoke: mood changes on mocked pageContext signals
 
 ### Files to touch
@@ -137,7 +137,7 @@ User chose **reactive** depth for v1. Diary polling (`/api/activity/today`) and 
 | File | Change |
 |------|--------|
 | `ui/src/lib/hoot-ascii.ts` | Trigger table, new moods, frame banks, captions |
-| `ui/src/lib/hoot-logo.tsx` | Support new moods / motion classes |
+| `ui/src/lib/h00t-logo.tsx` | Support new moods / motion classes |
 | `ui/src/context/CoachContext.tsx` | Signal TTL decay, optional activity poll |
 | `ui/src/pages/*.tsx` | Emit `hootSignal` on user actions |
 | `ui/src/index.css` | Motion for syncing/installing/proud |

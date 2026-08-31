@@ -4,6 +4,16 @@ param(
 )
 
 function Command-Info($name) {
+  # HOOT-bundled RTK lives under HootAi\bin (preinstalled) — check before PATH
+  if ($name -eq 'rtk') {
+    $hootBin = Join-Path $PSScriptRoot 'bin\rtk.exe'
+    if (-not (Test-Path $hootBin)) { $hootBin = Join-Path $PSScriptRoot 'bin\rtk' }
+    if (Test-Path $hootBin) {
+      $version = $null
+      try { $version = (& $hootBin --version 2>$null | Out-String).Trim() } catch {}
+      return @{ present = $true; path = $hootBin; version = $version; source = 'hoot-bin' }
+    }
+  }
   $cmd = Get-Command $name -ErrorAction SilentlyContinue
   if ($null -eq $cmd) { return @{ present = $false; path = $null; version = $null } }
   $version = $null
@@ -29,7 +39,7 @@ function Command-Info($name) {
       default { $version = $null }
     }
   } catch { $version = $null }
-  return @{ present = $true; path = $cmd.Source; version = $version }
+  return @{ present = $true; path = $cmd.Source; version = $version; source = 'path' }
 }
 
 function Env-State($name) {
@@ -425,7 +435,8 @@ $localModels = Detect-LocalModelBackends
 $rtkGain = $null
 if ($tools.rtk.present) {
   try {
-    $gainJson = (& rtk gain --all --format json 2>$null | Out-String).Trim()
+    $rtkExe = if ($tools.rtk.path) { $tools.rtk.path } else { 'rtk' }
+    $gainJson = (& $rtkExe gain --all --format json 2>$null | Out-String).Trim()
     if ($gainJson) { $rtkGain = $gainJson | ConvertFrom-Json }
   } catch {}
 }
@@ -452,7 +463,7 @@ $result = @{
   env_files = $envFiles
   ollama = @{ list_raw = $ollamaListRaw; ps_raw = $ollamaPsRaw; loaded_models = (Parse-OllamaPs $ollamaPsRaw) }
   local_models = $localModels
-  token_efficiency = @{ rtk = @{ present = $tools.rtk.present; version = $tools.rtk.version; gain = $rtkGain }; wsl = $wslDetail }
+  token_efficiency = @{ rtk = @{ present = $tools.rtk.present; version = $tools.rtk.version; path = $tools.rtk.path; source = $tools.rtk.source; gain = $rtkGain; preinstalled = ($tools.rtk.source -eq 'hoot-bin') }; wsl = $wslDetail }
   repo = $repo
 }
 

@@ -25,14 +25,21 @@
     --ring: 34 68% 75%;
     --radius: 0px;
 
-    /* HOOT brand tokens (single source of truth for gold family) */
-    --hoot-gold: #ffb042;
-    --hoot-gold-light: #f5c878;
-    --hoot-gold-mid: #e8a050;
-    --hoot-gold-dark: #c8872e;
-    --hoot-ink: #0a0a0a;
-    --hoot-face: #12100e;
-    --hoot-glow: rgba(255, 176, 66, 0.28);
+    /* H00T brand tokens (canonical --h00t-*; --hoot-* aliases for one release) */
+    --h00t-gold: #ffb042;
+    --h00t-gold-light: #f5c878;
+    --h00t-gold-mid: #e8a050;
+    --h00t-gold-dark: #c8872e;
+    --h00t-ink: #0a0a0a;
+    --h00t-face: #12100e;
+    --h00t-glow: rgba(255, 176, 66, 0.28);
+    --hoot-gold: var(--h00t-gold);
+    --hoot-gold-light: var(--h00t-gold-light);
+    --hoot-gold-mid: var(--h00t-gold-mid);
+    --hoot-gold-dark: var(--h00t-gold-dark);
+    --hoot-ink: var(--h00t-ink);
+    --hoot-face: var(--h00t-face);
+    --hoot-glow: var(--h00t-glow);
 
     /* ANSI terminal palette (console surface is dark in both themes) */
     --term-black: #52525b;
@@ -519,4 +526,22 @@ p:last-child {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Season C2 — coach screen binding pulse */
+.hoot-bind-pulse {
+  outline: 2px solid var(--hoot-gold, #ffb042) !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--hoot-glow, rgba(255, 176, 66, 0.28)), 0 0 24px var(--hoot-glow, rgba(255, 176, 66, 0.35));
+  animation: hootBindPulse 1.2s ease-in-out 3;
+  border-radius: 10px;
+  z-index: 5;
+  position: relative;
+}
+@keyframes hootBindPulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--hoot-glow, rgba(255, 176, 66, 0.2)); }
+  50% { box-shadow: 0 0 0 6px var(--hoot-glow, rgba(255, 176, 66, 0.4)), 0 0 28px var(--hoot-glow, rgba(255, 176, 66, 0.45)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hoot-bind-pulse { animation: none; }
 }

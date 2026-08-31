@@ -56,6 +56,8 @@ export default function TokenLedgerPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [range, setRange] = useState<LedgerRange>("365");
+  const [footprint, setFootprint] = useState<Awaited<ReturnType<typeof api.discoverTokenLedger>> | null>(null);
+  const [discovering, setDiscovering] = useState(false);
 
   const load = useCallback(async (refresh = false) => {
     setRefreshing(true);
@@ -67,6 +69,17 @@ export default function TokenLedgerPage() {
       setRefreshing(false);
     }
   }, []);
+
+  const scanSystem = useCallback(async () => {
+    setDiscovering(true);
+    try {
+      const disc = await api.discoverTokenLedger();
+      setFootprint(disc);
+      await load(true);
+    } finally {
+      setDiscovering(false);
+    }
+  }, [load]);
 
   useSessionPoll(() => load(true), { immediate: true });
 
@@ -107,7 +120,7 @@ export default function TokenLedgerPage() {
             Token Ledger
           </h2>
           <p style={{ margin: "8px 0 0", fontSize: 12, opacity: 0.55, maxWidth: 640, lineHeight: 1.5 }}>
-            Daily token volume across Codex, Claude, and ChatGPT. Claude and ChatGPT include estimated chat activity where exact tokens are unavailable.
+            Overall local AI footprint — Codex, Claude Code, Gemini CLI, Grok, Cursor, and H00T logs when discovered. Use <strong>Scan system</strong> to find token logs across clients.
           </p>
           <p style={{ margin: "6px 0 0", fontSize: 11, opacity: 0.4 }}>
             Updated {formatDate(meta.generated_at.slice(0, 10), { year: true })} · {meta.refresh_mode} · {meta.timezone}
@@ -137,6 +150,26 @@ export default function TokenLedgerPage() {
           </div>
           <button
             type="button"
+            onClick={() => void scanSystem()}
+            disabled={discovering || refreshing}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "1px solid rgba(255,176,66,0.35)",
+              background: "rgba(255,176,66,0.1)",
+              color: "#ffb042",
+              cursor: "pointer",
+              fontSize: 12,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <Flame size={14} />
+            {discovering ? "Scanning system…" : "Scan system for logs"}
+          </button>
+          <button
+            type="button"
             onClick={() => load(true)}
             disabled={refreshing}
             style={{
@@ -158,12 +191,44 @@ export default function TokenLedgerPage() {
         </div>
       </header>
 
+      {(footprint || (meta as any).sources?.footprint) && (
+        <Section title="AI footprint sources" caption="Read-only discovery of local LLM client logs (Claude, Codex, Gemini, Grok, Cursor, H00T).">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {((footprint?.sources || (meta as any).sources?.footprint?.sources || []) as Array<any>).map((s) => (
+              <div
+                key={s.id}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: `1px solid ${s.present ? "rgba(52,211,153,0.25)" : "rgba(255,255,255,0.08)"}`,
+                  background: s.present ? "rgba(52,211,153,0.06)" : "rgba(255,255,255,0.02)",
+                  minWidth: 140,
+                  fontSize: 11,
+                }}
+              >
+                <div style={{ fontWeight: 600, color: s.present ? "#6ee7b7" : "#aaa" }}>{s.label}</div>
+                <div style={{ opacity: 0.55, marginTop: 4 }}>
+                  {s.present ? `${s.files} log files · probe ~${formatNumber(s.tokens_probe || 0)} tok` : "not found"}
+                </div>
+              </div>
+            ))}
+          </div>
+          {(footprint?.summary || (meta as any).footprint_summary) && (
+            <p style={{ margin: "12px 0 0", fontSize: 11, opacity: 0.5 }}>
+              {(footprint?.summary || (meta as any).footprint_summary).sources_present} sources ·{" "}
+              {(footprint?.summary || (meta as any).footprint_summary).files} files · probe{" "}
+              {formatNumber((footprint?.summary || (meta as any).footprint_summary).tokens_probe || 0)} tokens sampled
+            </p>
+          )}
+        </Section>
+      )}
+
       {meta.empty && (
         <div style={{ padding: 16, borderRadius: 12, border: "1px solid rgba(255,176,66,0.2)", background: "rgba(255,176,66,0.06)", fontSize: 12, lineHeight: 1.55 }}>
-          <strong style={{ color: "#ffb042" }}>No token data yet.</strong> Configure Codex session roots and Claude/ChatGPT CSV paths in Settings, or POST a Nate <code>tokenBurnData</code> export to <code>/api/token-ledger/import</code>.
+          <strong style={{ color: "#ffb042" }}>No token data yet.</strong> Click <strong>Scan system for logs</strong> to discover Claude/Codex/Grok/Gemini/H00T usage files, then Refresh ingest.
           {!meta.configured && (
             <p style={{ margin: "8px 0 0", opacity: 0.75 }}>
-              HOOT can auto-discover paths via <code>GET /api/token-ledger/config</code> — wire Settings UI in a follow-up if needed.
+              Paths are auto-discovered under your home directory and H00T state — no manual CSV required for JSONL clients.
             </p>
           )}
         </div>

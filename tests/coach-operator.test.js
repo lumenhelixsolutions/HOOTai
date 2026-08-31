@@ -7,7 +7,7 @@ const {
   executeCoachCommand,
   formatEvidenceBlock,
 } = require('../coach-operator');
-const { resolveHootBrain, parseOllamaListRaw, bestLoadedOperatorModel } = require('../hoot-brain');
+const { resolveHootBrain, parseOllamaListRaw, bestLoadedOperatorModel } = require('../h00t-brain');
 const { resolveProviderKey, isLocalProvider } = require('../key-vault');
 
 describe('coach-operator policy', () => {
@@ -129,11 +129,15 @@ describe('hoot-brain resolver', () => {
     assert.deepStrictEqual(models, ['llama3.2:3b', 'qwen2.5:7b']);
   });
 
-  it('bestLoadedOperatorModel prefers llama3.2', () => {
+  it('bestLoadedOperatorModel prefers gemma then llama3.2', () => {
     const model = bestLoadedOperatorModel({
       ollama: { list_raw: 'NAME\nhermes3:8b\nllama3.2:3b\n' },
     });
     assert.strictEqual(model, 'llama3.2:3b');
+    const gemma = bestLoadedOperatorModel({
+      ollama: { list_raw: 'NAME\nllama3.2:3b\ngemma4:latest\n' },
+    });
+    assert.strictEqual(gemma, 'gemma4:latest');
   });
 
   it('resolveHootBrain picks ollama when present with installed model', () => {
